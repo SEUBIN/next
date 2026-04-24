@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cityKo": "도쿄",
+  "metroKey": "tokyo",
+  "source": "inline",
+  "note": "tokyoLineDefs / stationsTokyo 인라인 데이터와 동기."
+}

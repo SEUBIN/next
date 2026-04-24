@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cityKo": "방콕",
+  "metroKey": "bangkok",
+  "source": "inline",
+  "note": "bangkokLineDefs / stationsBangkok 인라인 데이터와 동기."
+}

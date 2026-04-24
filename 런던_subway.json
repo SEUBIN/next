@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cityKo": "런던",
+  "metroKey": "london",
+  "source": "inline",
+  "note": "지도·노선(런던 튜브)는 페이지 내 인라인 정의(londonLineDefs)로 구현. 확장·외부 병합 시 lines/stations 스키마를 이 파일에 둘 수 있음."
+}

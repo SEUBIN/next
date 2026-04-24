@@ -1,0 +1,3744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Next Stop: Up to You | 도보 관광 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    :root {
+      /* 하나투어 CI (hanatourcompany.com/kr/company/ci) */
+      --hana-purple: #5e2bb8;
+      --hana-purple-dark: #4a2294;
+      --hana-mint: #08d1d9;
+      --hana-mint-dark: #06a8af;
+      --text-primary: #1a1a1a;
+      --text-secondary: #5c5c5c;
+      --text-muted: #8a8a8a;
+      --border: #e5e5e5;
+      --surface: #ffffff;
+      --page-bg: #f4f5f7;
+      /* 서울교통공사 노선도 기준 1·2호선 색 (안내·범례·지도 노선·마커 짝대기 공통) */
+      --metro-line1: #0052a4;
+      --metro-line1-dark: #003d7a;
+      --metro-line2: #00a84d;
+      --metro-line2-dark: #007a38;
+      --metro-line3: #ef7c1e;
+      --metro-line4: #00a5de;
+      --metro-line5: #996cac;
+      --metro-line6: #cd7c2f;
+      --metro-line7: #747f00;
+      --metro-line8: #e6186c;
+      --metro-line9: #bdb092;
+      /* 인천공항철도(AREX) 안내 색 근사 */
+      --metro-line10: #0090d0;
+      --metro-line10-dark: #006ca3;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Noto Sans KR", sans-serif;
+      background: var(--page-bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+    .page-header {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header__accent {
+      width: 40px;
+      height: 3px;
+      background: var(--hana-mint);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      max-width: 52rem;
+    }
+    .subtitle .muted { color: var(--text-muted); }
+    .map-section {
+      position: relative;
+    }
+    /* 우측 상단: 노선도 색 짝대기 범례 */
+    .line-legend {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.97);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.8125rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .line-legend__title {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      letter-spacing: 0.02em;
+    }
+    .line-legend__row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 0;
+    }
+    .line-legend__row:last-child { margin-bottom: 0; }
+    .line-legend__bar {
+      width: 5px;
+      height: 18px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .line-legend__bar--1 { background: var(--metro-line1); }
+    .line-legend__bar--2 { background: var(--metro-line2); }
+    .line-legend__bar--3 { background: var(--metro-line3); }
+    .line-legend__bar--4 { background: var(--metro-line4); }
+    .line-legend__bar--5 { background: var(--metro-line5); }
+    .line-legend__bar--6 { background: var(--metro-line6); }
+    .line-legend__bar--7 { background: var(--metro-line7); }
+    .line-legend__bar--8 { background: var(--metro-line8); }
+    .line-legend__bar--9 { background: var(--metro-line9); }
+    .line-legend__bar--10 { background: var(--metro-line10); }
+    .line-legend__bar--vic { background: #00a0e9; }
+    .line-legend__bar--pic { background: #0019a8; }
+    .line-legend__bar--cen { background: #ee352e; }
+    .line-legend__bar--jub { background: #a0a5a9; }
+    .line-legend__bar--dis { background: #00782a; }
+    .line-legend__bar--nor { background: #000000; }
+    .line-legend__bar--bak { background: #b36305; }
+    .line-legend__bar--cir { background: #ffd320; }
+    .line-legend__bar--hs { background: #f3a9bb; }
+    .line-legend__bar--met { background: #9b0056; }
+    /* 뉴욕 MTA 노선도 색상 근사 */
+    .line-legend__bar--ny123 { background: #ee352e; }
+    .line-legend__bar--ny456 { background: #00933c; }
+    .line-legend__bar--nyace { background: #2850ad; }
+    .line-legend__bar--nynqrw { background: #fccc0a; }
+    .line-legend__bar--nyl { background: #a7a9ac; }
+    .line-legend__bar--ny7 { background: #b933ad; }
+    /* 도쿄 메트로·도에이 노선도 색상 근사 */
+    .line-legend__bar--tmg { background: #ff9500; }
+    .line-legend__bar--tmm { background: #e60012; }
+    .line-legend__bar--tmh { background: #b5b5ac; }
+    .line-legend__bar--tmt { background: #009bbf; }
+    .line-legend__bar--tmc { background: #00bb85; }
+    .line-legend__bar--tme { background: #b6007a; }
+    /* 방콕 BTS·MRT·ARL 노선도 색상 근사 */
+    .line-legend__bar--bkbts { background: #76b82a; }
+    .line-legend__bar--bksil { background: #006747; }
+    .line-legend__bar--bkmblue { background: #1e4090; }
+    .line-legend__bar--bkmpur { background: #7b388e; }
+    .line-legend__bar--bkarl { background: #8b1a1a; }
+    .line-legend__body {
+      margin-top: 2px;
+      overflow: visible;
+    }
+    .line-legend__row--selectable {
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 3px 8px;
+      margin: 0 -8px 1px;
+      transition: background 0.15s ease;
+    }
+    .line-legend__row--selectable:hover {
+      background: rgba(94, 43, 184, 0.06);
+    }
+    .line-legend__row--selectable.is-active {
+      background: rgba(94, 43, 184, 0.12);
+      outline: 1px solid rgba(94, 43, 184, 0.25);
+    }
+    .line-legend__row--inactive-line {
+      opacity: 0.62;
+      filter: grayscale(0.35);
+    }
+    .line-legend__row--inactive-line .line-legend__name {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .line-legend__row--inactive-line.line-legend__row--selectable:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    .line-legend__name {
+      font-weight: 700;
+      color: var(--text-primary);
+      min-width: 2.75rem;
+    }
+    .line-legend__note {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+    }
+    #map-wrap {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+    }
+    .map-gnb {
+      display: flex;
+      align-items: stretch;
+      flex-shrink: 0;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 4px;
+    }
+    .map-gnb__tabs {
+      display: flex;
+      gap: 0;
+    }
+    .map-gnb__tab {
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 14px 20px;
+      border: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .map-gnb__tab:hover {
+      color: var(--hana-purple-dark);
+      background: rgba(94, 43, 184, 0.04);
+    }
+    .map-gnb__tab.is-active {
+      color: var(--hana-purple);
+      border-bottom-color: var(--hana-purple);
+      background: rgba(94, 43, 184, 0.06);
+    }
+    .map-tab-panel {
+      display: none;
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+    .map-tab-panel.is-active {
+      display: block;
+    }
+    .map-canvas {
+      height: 70vh;
+      min-height: 450px;
+      background: #eef1f4;
+    }
+    .map-weather {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 1001;
+      min-width: 200px;
+      max-width: 280px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      font-size: 0.8125rem;
+    }
+    .map-weather__row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .map-weather__icon {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+    .map-weather__city {
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 2px;
+    }
+    .map-weather__temp {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--hana-purple);
+      margin: 0 0 2px;
+    }
+    .map-weather__desc {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+    .map-weather--loading .map-weather__desc,
+    .map-weather--err .map-weather__desc {
+      color: var(--text-muted);
+    }
+    .leaflet-container {
+      font-family: inherit;
+      font-size: 0.8125rem;
+    }
+    .leaflet-control-attribution {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.92) !important;
+    }
+    .leaflet-control-attribution a { color: var(--hana-purple-dark); }
+    /* 역 마커: 풀 역명 + 노선색 짝대기 (지도 노선과 동일 색) */
+    .station-marker-label {
+      display: flex;
+      align-items: stretch;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      font-weight: 700;
+      font-size: 0.6875rem;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .station-marker-label__bar {
+      width: 5px;
+      flex-shrink: 0;
+      border-radius: 3px 0 0 3px;
+    }
+    .station-marker-label.metro-line1 .station-marker-label__bar {
+      background: var(--metro-line1);
+    }
+    .station-marker-label.metro-line2 .station-marker-label__bar {
+      background: var(--metro-line2);
+    }
+    .station-marker-label.metro-line3 .station-marker-label__bar { background: var(--metro-line3); }
+    .station-marker-label.metro-line4 .station-marker-label__bar { background: var(--metro-line4); }
+    .station-marker-label.metro-line5 .station-marker-label__bar { background: var(--metro-line5); }
+    .station-marker-label.metro-line6 .station-marker-label__bar { background: var(--metro-line6); }
+    .station-marker-label.metro-line7 .station-marker-label__bar { background: var(--metro-line7); }
+    .station-marker-label.metro-line8 .station-marker-label__bar { background: var(--metro-line8); }
+    .station-marker-label.metro-line9 .station-marker-label__bar { background: var(--metro-line9); }
+    .station-marker-label.metro-line10 .station-marker-label__bar { background: var(--metro-line10); }
+    /* 런던 튜브 (TfL 노선도 기준 색상 근사) */
+    .station-marker-label.tube-victoria .station-marker-label__bar { background: #00a0e9; }
+    .station-marker-label.tube-piccadilly .station-marker-label__bar { background: #0019a8; }
+    .station-marker-label.tube-central .station-marker-label__bar { background: #ee352e; }
+    .station-marker-label.tube-jubilee .station-marker-label__bar { background: #a0a5a9; }
+    .station-marker-label.tube-district .station-marker-label__bar { background: #00782a; }
+    .station-marker-label.tube-northern .station-marker-label__bar { background: #000000; }
+    .station-marker-label.tube-bakerloo .station-marker-label__bar { background: #b36305; }
+    .station-marker-label.tube-circle .station-marker-label__bar { background: #ffd320; }
+    .station-marker-label.tube-hsmith .station-marker-label__bar { background: #f3a9bb; }
+    .station-marker-label.tube-metropolitan .station-marker-label__bar { background: #9b0056; }
+    .station-marker-label.tube-ny123 .station-marker-label__bar { background: #ee352e; }
+    .station-marker-label.tube-ny456 .station-marker-label__bar { background: #00933c; }
+    .station-marker-label.tube-nyACE .station-marker-label__bar { background: #2850ad; }
+    .station-marker-label.tube-nyNQRW .station-marker-label__bar { background: #fccc0a; }
+    .station-marker-label.tube-nyL .station-marker-label__bar { background: #a7a9ac; }
+    .station-marker-label.tube-ny7 .station-marker-label__bar { background: #b933ad; }
+    .station-marker-label.tube-tmginza .station-marker-label__bar { background: #ff9500; }
+    .station-marker-label.tube-tmmarunouchi .station-marker-label__bar { background: #e60012; }
+    .station-marker-label.tube-tmhibiya .station-marker-label__bar { background: #b5b5ac; }
+    .station-marker-label.tube-tmtozai .station-marker-label__bar { background: #009bbf; }
+    .station-marker-label.tube-tmchiyoda .station-marker-label__bar { background: #00bb85; }
+    .station-marker-label.tube-tmoedo .station-marker-label__bar { background: #b6007a; }
+    .station-marker-label.tube-bksukhumvit .station-marker-label__bar { background: #76b82a; }
+    .station-marker-label.tube-bksilom .station-marker-label__bar { background: #006747; }
+    .station-marker-label.tube-bkmblue .station-marker-label__bar { background: #1e4090; }
+    .station-marker-label.tube-bkmpurple .station-marker-label__bar { background: #7b388e; }
+    .station-marker-label.tube-bkarl .station-marker-label__bar { background: #8b1a1a; }
+    .station-marker-label--inactive {
+      opacity: 0.52;
+      filter: grayscale(0.35);
+      cursor: default;
+      pointer-events: none;
+    }
+    .station-marker-label--inactive .station-marker-label__text {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .station-marker-label--inactive .station-marker-label__bar {
+      opacity: 0.55;
+    }
+    .station-marker-label__text {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px 6px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* 목적지: 랜드마크 캐릭터 + 명칭 (클릭 시 경로 초기화) */
+    .destination-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .destination-marker__figure {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #fff8f8 0%, #fff 100%);
+      border: 2px solid #fecaca;
+      box-shadow: 0 2px 12px rgba(220,38,38,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #374151;
+      flex-shrink: 0;
+    }
+    .destination-marker__figure svg {
+      display: block;
+    }
+    .destination-marker__name {
+      margin-top: 6px;
+      padding: 8px 10px;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      line-height: 1.4;
+      word-break: keep-all;
+      white-space: normal;
+      max-width: 100%;
+    }
+    /* 경로 위 보행 표시 (작은 보행자 아이콘) */
+    .route-walker {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #9ca3af;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #374151;
+    }
+    .route-walker__rotate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+    .route-walker svg {
+      display: block;
+      width: 18px;
+      height: 18px;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      border: 1px solid var(--border);
+      padding: 0;
+      min-width: 280px;
+    }
+    .leaflet-popup-content {
+      margin: 0;
+      padding: 0;
+      font-size: 0.875rem;
+    }
+    .leaflet-popup-tip {
+      background: var(--surface);
+      box-shadow: none;
+    }
+    .popup-station-name {
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 14px 16px;
+      background: var(--hana-purple);
+      color: #fff;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+    .popup-filter-caption {
+      padding: 10px 16px 0;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .popup-empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+    .popup-list {
+      padding: 12px 16px 16px;
+      list-style: none;
+    }
+    .popup-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      margin-bottom: 6px;
+      border-radius: 6px;
+      font-weight: 500;
+      color: var(--text-primary);
+      background: #fafafa;
+      border: 1px solid var(--border);
+    }
+    .popup-list li:last-child { margin-bottom: 0; }
+    .popup-list .place-name { flex: 1; margin-right: 0; }
+    .popup-list a.place-link {
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .popup-list a.place-link:hover {
+      color: var(--hana-purple);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .popup-list .place-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .place-meta .dist { color: var(--hana-purple-dark); font-weight: 600; }
+    .place-meta .time { color: var(--hana-mint-dark); font-weight: 600; }
+    .popup-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 16px 14px;
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+    }
+    .popup-pagination button {
+      font-family: inherit;
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--hana-purple);
+      background: var(--surface);
+      color: var(--hana-purple);
+      font-weight: 600;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .popup-pagination button:hover:not(:disabled) {
+      background: var(--hana-purple);
+      color: #fff;
+    }
+    .popup-pagination button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--text-muted);
+      background: #f5f5f5;
+    }
+    .popup-pagination .page-num {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      min-width: 4rem;
+      text-align: center;
+    }
+    /* 목적지 연동 추천 상품 모달 (화이트 & 퍼플) */
+    .product-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(30, 20, 50, 0.45);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+    .product-modal-overlay.is-open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .product-modal {
+      width: 100%;
+      max-width: 420px;
+      max-height: min(86vh, 640px);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 48px rgba(94, 43, 184, 0.18), 0 8px 24px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      transform: translateY(8px);
+      transition: transform 0.22s ease;
+    }
+    .product-modal-overlay.is-open .product-modal {
+      transform: translateY(0);
+    }
+    .product-modal__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 14px;
+      background: linear-gradient(135deg, var(--hana-purple) 0%, var(--hana-purple-dark) 100%);
+      color: #fff;
+    }
+    .product-modal__head-text { min-width: 0; }
+    .product-modal__eyebrow {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.88;
+      margin-bottom: 4px;
+    }
+    .product-modal__title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.35;
+    }
+    .product-modal__subtitle {
+      margin-top: 6px;
+      font-size: 0.8125rem;
+      opacity: 0.92;
+      font-weight: 500;
+    }
+    .product-modal__close {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 1.25rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+    .product-modal__close:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+    .product-modal__body {
+      padding: 14px 16px 10px;
+      overflow-y: auto;
+      flex: 1;
+      background: #faf9fc;
+    }
+    .product-modal__hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+    a.product-card {
+      display: flex;
+      gap: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(94, 43, 184, 0.06);
+      align-items: center;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    }
+    a.product-card:hover {
+      border-color: #c4b5fd;
+      box-shadow: 0 4px 12px rgba(94, 43, 184, 0.12);
+      transform: translateY(-1px);
+    }
+    a.product-card:focus-visible {
+      outline: 2px solid var(--hana-purple);
+      outline-offset: 2px;
+    }
+    a.product-card:last-child { margin-bottom: 0; }
+    .product-card__thumb {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #ede9f5;
+      border: 1px solid #e8e4f0;
+    }
+    .product-card__thumb--csv {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #5e2bb8;
+      user-select: none;
+    }
+    .product-card__body { min-width: 0; flex: 1; }
+    .product-card__name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.4;
+      word-break: keep-all;
+      margin-bottom: 8px;
+    }
+    .product-card__row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px 10px;
+    }
+    .product-card__discount {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #7c3aed 0%, var(--hana-purple) 100%);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .product-card__price {
+      font-size: 0.9375rem;
+      font-weight: 800;
+      color: var(--hana-purple-dark);
+      letter-spacing: -0.02em;
+    }
+    .product-modal__foot {
+      padding: 14px 16px 16px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+    }
+    .product-modal__more {
+      display: block;
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--hana-purple) 0%, var(--hana-purple-dark) 100%);
+      box-shadow: 0 4px 14px rgba(94, 43, 184, 0.35);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .product-modal__more:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(94, 43, 184, 0.42);
+    }
+    .product-modal__more:active {
+      transform: translateY(0);
+    }
+    .map-gnb__tab[hidden] { display: none !important; }
+    .csv-tourism-poi-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .csv-tourism-poi-marker__figure {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #faf5ff 0%, #fff 100%);
+      border: 2px solid #5e2bb8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .csv-tourism-poi-marker__badge {
+      font-size: 0.625rem;
+      font-weight: 700;
+      color: #5e2bb8;
+      margin-top: 2px;
+    }
+    .csv-tourism-poi-marker__name {
+      margin-top: 4px;
+      max-width: 10rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+    .leaflet-popup.csv-product-tip .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div class="page-header__accent" aria-hidden="true"></div>
+      <h1>Next Stop: Up to You</h1>
+      <p class="subtitle">노선을 고른 뒤 역을 누르면, <strong>productList_20260424.csv</strong>에서 매칭된 상품만 보라색 마커로 표시됩니다(클릭 시 상품명·판매가). <span class="muted">지도: CARTO · 도로·경로: OpenStreetMap</span></p>
+    </header>
+    <div class="map-section">
+      <div id="map-wrap">
+        <nav class="map-gnb" aria-label="지역·노선 선택">
+          <div class="map-gnb__tabs" id="map-gnb-tabs" role="tablist">
+            <button type="button" class="map-gnb__tab is-active" role="tab" id="tab-london" aria-selected="true" aria-controls="map-panel-london" data-metro-tab="london">런던 지하철</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-newyork" aria-selected="false" aria-controls="map-panel-newyork" data-metro-tab="newyork">뉴욕 지하철</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-tokyo" aria-selected="false" aria-controls="map-panel-tokyo" data-metro-tab="tokyo">도쿄 지하철</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-bangkok" aria-selected="false" aria-controls="map-panel-bangkok" data-metro-tab="bangkok">방콕 지하철</button>
+          </div>
+        </nav>
+        <div id="map-panel-london" class="map-tab-panel is-active" role="tabpanel" aria-labelledby="tab-london">
+          <aside class="line-legend line-legend--london" aria-label="런던 튜브 노선 선택">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="victoria" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--vic" aria-hidden="true"></span><span class="line-legend__name">Victoria</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="piccadilly" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--pic" aria-hidden="true"></span><span class="line-legend__name">Piccadilly</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="central" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--cen" aria-hidden="true"></span><span class="line-legend__name">Central</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="jubilee" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--jub" aria-hidden="true"></span><span class="line-legend__name">Jubilee</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="district" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--dis" aria-hidden="true"></span><span class="line-legend__name">District</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="northern" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--nor" aria-hidden="true"></span><span class="line-legend__name">Northern</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bakerloo" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bak" aria-hidden="true"></span><span class="line-legend__name">Bakerloo</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="circle" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--cir" aria-hidden="true"></span><span class="line-legend__name">Circle</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="hsmith" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--hs" aria-hidden="true"></span><span class="line-legend__name">H&amp;C</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="metropolitan" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--met" aria-hidden="true"></span><span class="line-legend__name">Metropolitan</span></div>
+            </div>
+          </aside>
+          <div id="map-london" class="map-canvas"></div>
+          <div id="map-weather-london" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-london-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">런던</p>
+                <p class="map-weather__temp" id="map-weather-london-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-london-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-newyork" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-newyork">
+          <aside class="line-legend line-legend--nyc" aria-label="뉴욕 지하철 노선 선택">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="ny123" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--ny123" aria-hidden="true"></span><span class="line-legend__name">1·2·3</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="ny456" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--ny456" aria-hidden="true"></span><span class="line-legend__name">4·5·6</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="nyACE" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--nyace" aria-hidden="true"></span><span class="line-legend__name">A·C·E</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="nyNQRW" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--nynqrw" aria-hidden="true"></span><span class="line-legend__name">N·Q·R·W</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="nyL" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--nyl" aria-hidden="true"></span><span class="line-legend__name">L</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="ny7" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--ny7" aria-hidden="true"></span><span class="line-legend__name">7</span></div>
+            </div>
+          </aside>
+          <div id="map-newyork" class="map-canvas"></div>
+          <div id="map-weather-newyork" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-newyork-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">뉴욕</p>
+                <p class="map-weather__temp" id="map-weather-newyork-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-newyork-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-tokyo" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-tokyo">
+          <aside class="line-legend line-legend--tokyo" aria-label="도쿄 지하철 노선 선택">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmginza" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tmg" aria-hidden="true"></span><span class="line-legend__name">銀座線</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmmarunouchi" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tmm" aria-hidden="true"></span><span class="line-legend__name">丸ノ内線</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmhibiya" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tmh" aria-hidden="true"></span><span class="line-legend__name">日比谷線</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmtozai" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tmt" aria-hidden="true"></span><span class="line-legend__name">東西線</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmchiyoda" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tmc" aria-hidden="true"></span><span class="line-legend__name">千代田線</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tmoedo" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--tme" aria-hidden="true"></span><span class="line-legend__name">大江戸線</span></div>
+            </div>
+          </aside>
+          <div id="map-tokyo" class="map-canvas"></div>
+          <div id="map-weather-tokyo" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-tokyo-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">도쿄</p>
+                <p class="map-weather__temp" id="map-weather-tokyo-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-tokyo-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-bangkok" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-bangkok">
+          <aside class="line-legend line-legend--bangkok" aria-label="방콕 전철·지하철 노선 선택">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bksukhumvit" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bkbts" aria-hidden="true"></span><span class="line-legend__name">BTS 수쿰윗</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bksilom" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bksil" aria-hidden="true"></span><span class="line-legend__name">BTS 실롬</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bkmblue" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bkmblue" aria-hidden="true"></span><span class="line-legend__name">MRT 블루</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bkmpurple" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bkmpur" aria-hidden="true"></span><span class="line-legend__name">MRT 퍼플</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bkarl" role="button" tabindex="0"><span class="line-legend__bar line-legend__bar--bkarl" aria-hidden="true"></span><span class="line-legend__name">공항철도 ARL</span></div>
+            </div>
+          </aside>
+          <div id="map-bangkok" class="map-canvas"></div>
+          <div id="map-weather-bangkok" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-bangkok-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">방콕</p>
+                <p class="map-weather__temp" id="map-weather-bangkok-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-bangkok-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="product-modal-overlay"
+    class="product-modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="product-modal-title"
+    aria-hidden="true"
+    hidden
+  >
+    <div class="product-modal" role="document">
+      <div class="product-modal__head">
+        <div class="product-modal__head-text">
+          <p class="product-modal__eyebrow">추천 상품</p>
+          <h2 id="product-modal-title" class="product-modal__title"></h2>
+          <p id="product-modal-subtitle" class="product-modal__subtitle"></p>
+        </div>
+        <button type="button" class="product-modal__close" id="product-modal-close" aria-label="닫기">×</button>
+      </div>
+      <div class="product-modal__body">
+        <p class="product-modal__hint" id="product-modal-hint"></p>
+        <div id="product-modal-list"></div>
+      </div>
+      <div class="product-modal__foot">
+        <button type="button" class="product-modal__more" id="product-modal-more">더 많은 상품 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- productList_20260424.csv (UTF-8) → Base64. HTML과 같은 폴더에 두세요. -->
+  <script>
+    /* OpenWeatherMap 키가 있으면 우선 사용. 없거나 실패 시 API 키 없이 Open-Meteo(브라우저 CORS OK)로 표시 */
+    window.OPENWEATHERMAP_API_KEY = window.OPENWEATHERMAP_API_KEY || '';
+  </script>
+  <script src="csv_data.js" charset="utf-8"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="master_product_logic.js" charset="utf-8"></script>
+  <script>
+    // ----- 공통 데이터 -----
+    // 서울 중심 (아래에서 지도 초기화 시 사용)
+
+    // 서울 2호선 순환선 노선 좌표 (반시계 방향, 주요 역 기준)
+    var line2Coords = [
+      [37.5087, 126.8917],  // 신도림
+      [37.5179, 126.8948],  // 문래
+      [37.5264, 126.8962],  // 영등포구청
+      [37.5344, 126.9025],  // 당산
+      [37.5495, 126.9137],  // 합정
+      [37.5563, 126.9236],  // 홍대입구
+      [37.5552, 126.9365],  // 신촌
+      [37.5567, 126.9456],  // 이대
+      [37.5574, 126.9561],  // 아현
+      [37.5612, 126.9645],  // 충정로
+      [37.5654, 126.9769],  // 시청
+      [37.5661, 126.9826],  // 을지로입구
+      [37.5663, 126.9920],  // 을지로3가
+      [37.5656, 127.0192],  // 신당
+      [37.5643, 127.0290],  // 상왕십리
+      [37.5563, 127.0425],  // 한양대
+      [37.5472, 127.0474],  // 뚝섬
+      [37.5446, 127.0559],  // 성수
+      [37.5404, 127.0692],  // 건대입구
+      [37.5351, 127.0947],  // 강변
+      [37.5133, 127.1022],  // 잠실
+      [37.5109, 127.0736],  // 종합운동장
+      [37.5088, 127.0632],  // 삼성
+      [37.5045, 127.0489],  // 선릉
+      [37.5006, 127.0364],  // 역삼
+      [37.4979, 127.0276],  // 강남
+      [37.4934, 127.0141],  // 교대
+      [37.4919, 127.0079],  // 서초
+      [37.4835, 126.9817],  // 방배
+      [37.4765, 126.9817],  // 사당
+      [37.4771, 126.9634],  // 낙성대
+      [37.4812, 126.9525],  // 서울대입구
+      [37.4842, 126.9291],  // 봉천
+      [37.4874, 126.9132],  // 신대방
+      [37.4852, 126.9014],  // 구로디지털단지
+      [37.4926, 126.8954],  // 대림
+      [37.5087, 126.8917]   // 신도림 (순환)
+    ];
+    // 서울 1호선 노선 좌표 (서울 구간: 신도림 ~ 청량리)
+    var line1Coords = [
+      [37.5087, 126.8917],  // 신도림
+      [37.5264, 126.8962],  // 영등포
+      [37.5172, 126.9174],  // 신길
+      [37.5133, 126.9264],  // 대방
+      [37.5138, 126.9422],  // 노량진
+      [37.5298, 126.9648],  // 용산
+      [37.5546, 126.9706],  // 서울역
+      [37.5654, 126.9769],  // 시청
+      [37.5702, 126.9790],  // 종각
+      [37.5714, 126.9918],  // 종로3가
+      [37.5707, 127.0014],  // 종로5가
+      [37.5714, 127.0096],  // 동대문
+      [37.5726, 127.0164],  // 동묘앞
+      [37.5753, 127.0251],  // 신설동
+      [37.5781, 127.0349],  // 제기동
+      [37.5802, 127.0460]   // 청량리
+    ];
+
+    var seoulLine1Names = [
+      '신도림역', '영등포역', '신길역', '대방역', '노량진역', '용산역', '서울역', '시청역', '종각역', '종로3가역', '종로5가역', '동대문역', '동묘앞역', '신설동역', '제기동역', '청량리역'
+    ];
+    var seoulLine2Names = [
+      '신도림역', '문래역', '영등포구청역', '당산역', '합정역', '홍대입구역', '신촌역', '이대역', '아현역', '충정로역', '시청역', '을지로입구역', '을지로3가역', '신당역', '상왕십리역', '한양대역', '뚝섬역', '성수역', '건대입구역', '강변역', '잠실역', '종합운동장역', '삼성역', '선릉역', '역삼역', '강남역', '교대역', '서초역', '방배역', '사당역', '낙성대역', '서울대입구역', '봉천역', '신대방역', '구로디지털단지역', '대림역'
+    ];
+    var line3Coords = [
+      [37.6795, 126.761], [37.6532, 126.843], [37.637, 126.9178], [37.6218, 126.9214], [37.6109, 126.9305], [37.5919, 126.9514], [37.5764, 126.985], [37.5714, 126.9918], [37.5661, 127.0077], [37.5612, 127.0356], [37.5543, 127.0795], [37.5487, 127.1034], [37.5351, 127.1235], [37.5048, 127.1272]
+    ];
+    var line3Names = [
+      '대화역', '지축역', '구파발역', '연신내역', '불광역', '녹번역', '홍제역', '독립문역', '경복궁역', '안국역', '충무로역', '동대입구역', '약수역', '고속터미널역', '도곡역', '대치역', '학여울역', '대청역', '일원역', '수서역', '경찰병원역', '오금역'
+    ].slice(0, line3Coords.length);
+    var line4Coords = [
+      [37.8986, 127.123], [37.7521, 127.085], [37.6703, 127.0791], [37.6551, 127.0634], [37.6338, 127.0345], [37.6195, 127.021], [37.6121, 127.0081], [37.5943, 127.0164], [37.5787, 127.015], [37.5714, 126.9918], [37.5663, 126.9979], [37.5612, 127.0356], [37.5449, 127.0557], [37.5351, 127.0946], [37.5133, 127.1022], [37.4889, 127.1245]
+    ];
+    var line4Names = [
+      '진접역', '당고개역', '노원역', '쌍문역', '수유역', '미아역', '미아사거리역', '길음역', '성신여대입구역', '한성대입구역', '혜화역', '충무로역', '명동역', '회현역', '서울역', '숙대입구역', '삼각지역', '신용산역', '이촌역', '동작역', '총신대입구역', '사당역', '남태령역', '선바위역', '경마공원역', '대공원역', '과천역', '정부과천청사역', '인덕원역', '평촌역', '범계역', '금정역', '산본역', '수리산역', '대야미역', '반월역', '상록수역', '한대앞역', '중앙역', '고잔역', '초지역', '안산역', '신길온천역', '정왕역', '오이도역'
+    ].slice(0, line4Coords.length);
+    var line5Coords = [
+      [37.5838, 126.8953], [37.5651, 126.8667], [37.548, 126.8363], [37.5315, 126.831], [37.5247, 126.8959], [37.5087, 126.8917], [37.5172, 126.9174], [37.5546, 126.9706], [37.5714, 126.9918], [37.5661, 127.0077], [37.5612, 127.0356], [37.5449, 127.0557], [37.5351, 127.0946], [37.5264, 127.1129], [37.5087, 127.1265]
+    ];
+    var line5Names = [
+      '방화역', '개화산역', '김포공항역', '송정역', '마곡역', '발산역', '우장산역', '화곡역', '까치산역', '신정역', '목동역', '오목교역', '양평역', '영등포구청역', '영등포시장역', '신길역', '여의도역', '여의나루역', '마포역', '공덕역', '애오개역', '충정로역', '서대문역', '광화문역', '종로3가역', '을지로4가역', '동대문역사문화공원역', '청구역', '신금호역', '행당역', '왕십리역', '마장역', '답십리역', '장한평역', '군자역', '아차산역', '광나루역', '천호역', '강동역', '길동역', '굽은다리역', '명일역', '고덕역', '상일동역', '둔촌동역', '마천역'
+    ].slice(0, line5Coords.length);
+    var line6Coords = [
+      [37.5986, 126.9159], [37.5887, 126.9141], [37.5765, 126.9014], [37.5652, 126.9238], [37.5563, 126.9236], [37.5546, 126.9706], [37.5612, 126.9645], [37.5714, 126.9918], [37.5661, 127.0077], [37.5612, 127.0356], [37.5449, 127.0557], [37.5351, 127.0946], [37.5264, 127.1129], [37.5087, 127.1265]
+    ];
+    var line6Names = [
+      '응암순환', '새절역', '증산역', '디지털미디어시티역', '월드컵경기장역', '마포구청역', '망원역', '합정역', '상수역', '광흥창역', '대흥역', '공덕역', '효자목역', '삼각지역', '녹사평역', '이태원역', '한강진역', '버티고개역', '약수역', '청구역', '신당역', '동묘앞역', '창신역', '보문역', '안암역', '고려대역', '월곡역', '상월곡역', '돌곶이역', '석계역', '태릉입구역', '화랑대역', '봉화산역', '신내역', '봉화산역'
+    ].slice(0, line6Coords.length);
+    var line7Coords = [
+      [37.7001, 127.0536], [37.6454, 127.0643], [37.6194, 127.0578], [37.6022, 127.0415], [37.5887, 127.0195], [37.5714, 126.9918], [37.5661, 127.0077], [37.5612, 127.0356], [37.5449, 127.0557], [37.5351, 127.0946], [37.5264, 127.1129], [37.5087, 127.1265], [37.4933, 127.0798], [37.4639, 127.0519]
+    ];
+    var line7Names = [
+      '장암역', '도봉산역', '수락산역', '마들역', '노원역', '중계역', '하계역', '공릉역', '태릉입구역', '먹골역', '중화역', '상봉역', '면목역', '사가정역', '용마산역', '중곡역', '군자역', '어린이대공원역', '건대입구역', '뚝섬유원지역', '청담역', '강남구청역', '학동역', '논현역', '반포역', '고속터미널역', '내방역', '총신대입구역', '남성역', '이수역', '남구로역', '가산디지털단지역', '철산역', '광명사거리역', '천왕역', '온수역', '까치울역', '부천종합운동장역', '춘의역', '신중동역', '부천시청역', '상동역', '삼산체육관역', '굴포천역', '부평구청역', '산곡역', '석남역'
+    ].slice(0, line7Coords.length);
+    var line8Coords = [
+      [37.5506, 127.1276], [37.5449, 127.0557], [37.5351, 127.0946], [37.5264, 127.1129], [37.5133, 127.1022], [37.5087, 127.1265], [37.4933, 127.0798], [37.4812, 127.0467], [37.4639, 127.0519], [37.4451, 127.1271], [37.4321, 127.1291]
+    ];
+    var line8Names = [
+      '암사역', '천호역', '강동역', '몽촌토성역', '잠실역', '석촌역', '송파역', '가락시장역', '문정역', '장지역', '복정역', '산성역', '남한산성입구역', '단대오거리역', '신흥역', '수진역', '모란역'
+    ].slice(0, line8Coords.length);
+    /** 9호선: 서쪽(개화·김포) → 동쪽(중앙보훈병원), 위경도 순서 정렬 */
+    var line9Coords = [
+      [37.5784, 126.8128],
+      [37.5626, 126.8018],
+      [37.5635, 126.8102],
+      [37.5675, 126.8165],
+      [37.5673, 126.8276],
+      [37.5684, 126.8412],
+      [37.5614, 126.8541],
+      [37.5574, 126.8611],
+      [37.5506, 126.8659],
+      [37.547, 126.874],
+      [37.5447, 126.8832],
+      [37.5382, 126.8935],
+      [37.5344, 126.9025],
+      [37.5282, 126.9177],
+      [37.5259, 126.9256],
+      [37.517, 126.928],
+      [37.514, 126.9422],
+      [37.5088, 126.9635],
+      [37.5029, 126.9803],
+      [37.5013, 126.9873],
+      [37.5002, 126.9959],
+      [37.5047, 127.0048],
+      [37.5042, 127.015],
+      [37.5047, 127.0252],
+      [37.5074, 127.0339],
+      [37.5104, 127.0437],
+      [37.513, 127.0535],
+      [37.5142, 127.0601],
+      [37.5109, 127.0736],
+      [37.5058, 127.0763],
+      [37.5028, 127.0901],
+      [37.5052, 127.1061],
+      [37.5025, 127.1109],
+      [37.5166, 127.116],
+      [37.5163, 127.1309],
+      [37.5177, 127.1436],
+      [37.4994, 127.1496]
+    ];
+    var line9Names = [
+      '개화역', '김포공항역', '공항시장역', '신방화역', '마곡나루역', '양천향교역', '가양역', '증미역', '등촌역', '염창역', '신목동역', '선유도역', '당산역', '국회의사당역', '여의도역', '샛강역', '노량진역', '흑석역', '동작역', '구반포역', '신반포역', '고속터미널역', '사평역', '신논현역', '언주역', '선정릉역', '삼성중앙역', '봉은사역', '종합운동장역', '삼전역', '석촌고분역', '석촌역', '송파나루역', '한성백제역', '올림픽공원역', '둔촌오륜역', '중앙보훈병원역'
+    ].slice(0, line9Coords.length);
+
+    /** 인천공항철도(AREX) 주요 구간 (서울역 ~ 인천공항 2터미널, 노선도 근사) */
+    var lineArexCoords = [
+      [37.55465, 126.97256],
+      [37.54402, 126.95159],
+      [37.55834, 126.92553],
+      [37.57623, 126.90149],
+      [37.56243, 126.80129],
+      [37.57149, 126.73653],
+      [37.46037, 126.44067],
+      [37.46875, 126.43351]
+    ];
+    var lineArexNames = [
+      '서울역',
+      '공덕역',
+      '홍대입구역',
+      '디지털미디어시티역',
+      '김포공항역',
+      '계양역',
+      '인천공항1터미널역',
+      '인천공항2터미널역'
+    ];
+
+    function seoulTourismLineNums(t) {
+      return t.lines || [t.line != null ? t.line : 2];
+    }
+
+    function buildSeoulStationList(tourismStations, lineDefs) {
+      var degNear = 0.0025;
+      function nearOnLine(a, b, lineNum) {
+        if (seoulTourismLineNums(a).indexOf(lineNum) < 0) return false;
+        if (b.line !== lineNum) return false;
+        return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2)) < degNear;
+      }
+      var generated = [];
+      lineDefs.forEach(function(lm) {
+        var path = lm.path;
+        var names = lm.names;
+        var closed =
+          path.length > 2 &&
+          path[0][0] === path[path.length - 1][0] &&
+          path[0][1] === path[path.length - 1][1];
+        var maxi = closed ? path.length - 1 : path.length;
+        for (var i = 0; i < maxi; i++) {
+          if (!names[i]) continue;
+          generated.push({
+            id: 'sy-' + lm.id + '-' + i,
+            name: names[i],
+            lat: path[i][0],
+            lng: path[i][1],
+            line: lm.id,
+            places: []
+          });
+        }
+      });
+      var filtered = generated.filter(function(g) {
+        return !tourismStations.some(function(t) {
+          return nearOnLine(t, g, g.line);
+        });
+      });
+      return tourismStations.concat(filtered);
+    }
+
+    var seoulLineDefs = [
+      { id: 1, color: '#0052a4', outline: '#003d7a', path: line1Coords, names: seoulLine1Names },
+      { id: 2, color: '#00a84d', outline: '#007a38', path: line2Coords, names: seoulLine2Names },
+      { id: 3, color: '#ef7c1e', outline: '#c55e0e', path: line3Coords, names: line3Names },
+      { id: 4, color: '#00a5de', outline: '#007ca8', path: line4Coords, names: line4Names },
+      { id: 5, color: '#996cac', outline: '#6e4580', path: line5Coords, names: line5Names },
+      { id: 6, color: '#cd7c2f', outline: '#8a5418', path: line6Coords, names: line6Names },
+      { id: 7, color: '#747f00', outline: '#4d5200', path: line7Coords, names: line7Names },
+      { id: 8, color: '#e6186c', outline: '#9e1048', path: line8Coords, names: line8Names },
+      { id: 9, color: '#bdb092', outline: '#857a63', path: line9Coords, names: line9Names },
+      { id: 10, color: '#0090d0', outline: '#006ca3', path: lineArexCoords, names: lineArexNames }
+    ];
+
+    var stationsSeoulTourism = [
+      {
+        id: 'gangnam',
+        name: '강남역',
+        line: 2,
+        lat: 37.4979,
+        lng: 127.0276,
+        places: [
+          { name: '강남역 지하상가', distance: 0, walkMin: 0, lat: 37.4979, lng: 127.0276 },
+          { name: '코엑스 아쿠아리움', distance: 800, walkMin: 10, lat: 37.5115, lng: 127.0596 },
+          { name: '선릉역 유적', distance: 1200, walkMin: 15, lat: 37.5050, lng: 127.0490 },
+          { name: '강남대로 쇼핑', distance: 200, walkMin: 3, lat: 37.4975, lng: 127.0290 },
+          { name: '역삼 맛집거리', distance: 500, walkMin: 7, lat: 37.5010, lng: 127.0370 },
+          { name: '논현동 카페거리', distance: 900, walkMin: 12, lat: 37.4910, lng: 127.0250 }
+        ]
+      },
+      {
+        id: 'jamsil',
+        name: '잠실역',
+        line: 2,
+        lat: 37.5133,
+        lng: 127.1022,
+        places: [
+          { name: '롯데월드', distance: 100, walkMin: 2, lat: 37.5125, lng: 127.1025 },
+          { name: '석촌호수', distance: 300, walkMin: 5, lat: 37.5155, lng: 127.1000 },
+          { name: '잠실야구장', distance: 500, walkMin: 7, lat: 37.5120, lng: 127.0718 },
+          { name: '롯데월드타워', distance: 150, walkMin: 2, lat: 37.5128, lng: 127.1028 }
+        ]
+      },
+      {
+        id: 'hongik',
+        name: '홍대입구역',
+        line: 2,
+        lat: 37.5563,
+        lng: 126.9236,
+        places: [
+          { name: '홍대 거리', distance: 200, walkMin: 3, lat: 37.5568, lng: 126.9245 },
+          { name: '경의대로 벽화거리', distance: 400, walkMin: 6, lat: 37.5575, lng: 126.9280 },
+          { name: '플레이스그라운드', distance: 350, walkMin: 5, lat: 37.5560, lng: 126.9260 },
+          { name: '맛집 골목', distance: 250, walkMin: 4, lat: 37.5555, lng: 126.9250 },
+          { name: '홍대 클럽거리', distance: 300, walkMin: 5, lat: 37.5562, lng: 126.9240 },
+          { name: '서울창업허브', distance: 600, walkMin: 8, lat: 37.5580, lng: 126.9310 }
+        ]
+      },
+      {
+        id: 'samseong',
+        name: '삼성역',
+        line: 2,
+        lat: 37.5088,
+        lng: 127.0632,
+        places: [
+          { name: '코엑스', distance: 200, walkMin: 3, lat: 37.5112, lng: 127.0592 },
+          { name: '봉은사', distance: 600, walkMin: 8, lat: 37.5142, lng: 127.0602 },
+          { name: '스타필드 코엑스몰', distance: 250, walkMin: 4, lat: 37.5105, lng: 127.0610 }
+        ]
+      },
+      {
+        id: 'seolleung',
+        name: '선릉역',
+        line: 2,
+        lat: 37.5045,
+        lng: 127.0489,
+        places: [
+          { name: '선정릉', distance: 400, walkMin: 6, lat: 37.5070, lng: 127.0495 },
+          { name: '도산공원', distance: 700, walkMin: 9, lat: 37.5210, lng: 127.0395 },
+          { name: '가로수길', distance: 500, walkMin: 7, lat: 37.5195, lng: 127.0230 }
+        ]
+      },
+      {
+        id: 'sindorim',
+        name: '신도림역',
+        line: 2,
+        lat: 37.5087,
+        lng: 126.8917,
+        places: [
+          { name: '디큐브시티', distance: 150, walkMin: 2, lat: 37.5085, lng: 126.8885 },
+          { name: '구로디지털단지', distance: 800, walkMin: 10, lat: 37.4852, lng: 126.9014 }
+        ]
+      },
+      // ----- 1호선 주요 역 -----
+      {
+        id: 'seoulstation',
+        name: '서울역',
+        line: 1,
+        lat: 37.5546,
+        lng: 126.9706,
+        places: [
+          { name: '경복궁', distance: 1800, walkMin: 22, lat: 37.5796, lng: 126.9770 },
+          { name: '덕수궁', distance: 600, walkMin: 8, lat: 37.5658, lng: 126.9752 },
+          { name: '남산서울타워', distance: 2500, walkMin: 35, lat: 37.5512, lng: 126.9882 },
+          { name: '명동거리', distance: 1200, walkMin: 15, lat: 37.5605, lng: 126.9855 },
+          { name: '서울역 광장', distance: 100, walkMin: 2, lat: 37.5542, lng: 126.9708 }
+        ]
+      },
+      {
+        id: 'yongsan',
+        name: '용산역',
+        line: 1,
+        lat: 37.5298,
+        lng: 126.9648,
+        places: [
+          { name: '전쟁기념관', distance: 400, walkMin: 6, lat: 37.5363, lng: 126.9774 },
+          { name: '이태원 거리', distance: 800, walkMin: 12, lat: 37.5345, lng: 126.9946 },
+          { name: '용산공원', distance: 300, walkMin: 5, lat: 37.5320, lng: 126.9680 }
+        ]
+      },
+      {
+        id: 'jongno3',
+        name: '종로3가역',
+        lines: [1, 3, 5],
+        lat: 37.5714,
+        lng: 126.9918,
+        places: [
+          { name: '인사동', distance: 500, walkMin: 7, lat: 37.5722, lng: 126.9855 },
+          { name: '청계천', distance: 300, walkMin: 5, lat: 37.5695, lng: 126.9788 },
+          { name: '광장시장', distance: 600, walkMin: 8, lat: 37.5702, lng: 127.0010 },
+          { name: '종로 거리', distance: 100, walkMin: 2, lat: 37.5710, lng: 126.9920 }
+        ]
+      },
+      {
+        id: 'anguk',
+        name: '안국역',
+        lines: [1, 3],
+        lat: 37.5764,
+        lng: 126.9850,
+        places: [
+          { name: '경복궁', distance: 850, walkMin: 11, lat: 37.5796, lng: 126.9770 },
+          { name: '창덕궁', distance: 950, walkMin: 12, lat: 37.5793, lng: 126.9910 },
+          { name: '북촌 한옥마을', distance: 400, walkMin: 6, lat: 37.5826, lng: 126.9850 }
+        ]
+      },
+      {
+        id: 'dongdaemun',
+        name: '동대문역',
+        line: 1,
+        lat: 37.5714,
+        lng: 127.0096,
+        places: [
+          { name: '동대문시장', distance: 200, walkMin: 3, lat: 37.5702, lng: 127.0078 },
+          { name: '동대문디자인플라자', distance: 400, walkMin: 6, lat: 37.5666, lng: 127.0094 },
+          { name: '흥인지문', distance: 600, walkMin: 8, lat: 37.5712, lng: 127.0154 }
+        ]
+      },
+      {
+        id: 'cheongnyangni',
+        name: '청량리역',
+        line: 1,
+        lat: 37.5802,
+        lng: 127.0460,
+        places: [
+          { name: '청량리시장', distance: 250, walkMin: 4, lat: 37.5810, lng: 127.0480 },
+          { name: '회기동 맛집거리', distance: 400, walkMin: 6, lat: 37.5825, lng: 127.0510 }
+        ]
+      }
+    ];
+
+    var stationsSeoul = buildSeoulStationList(stationsSeoulTourism, seoulLineDefs);
+
+    /** 런던 튜브: lineId로 범례·클릭과 매칭 */
+    var londonLineDefs = [
+      {
+        lineId: 'victoria',
+        name: 'Victoria',
+        color: '#00a0e9',
+        outline: '#0088c7',
+        coords: [[51.4857, -0.1232], [51.492, -0.142], [51.4953, -0.1441], [51.5038, -0.1518], [51.5067, -0.1428], [51.515, -0.1415], [51.5242, -0.1387], [51.5302, -0.1227]],
+        stationNames: ['Brixton', 'Stockwell', 'Vauxhall', 'Pimlico', 'Victoria', 'Green Park', 'Oxford Circus', 'Warren Street']
+      },
+      {
+        lineId: 'piccadilly',
+        name: 'Piccadilly',
+        color: '#0019a8',
+        outline: '#001060',
+        coords: [[51.4965, -0.1447], [51.5033, -0.1523], [51.5101, -0.1337], [51.5136, -0.101]],
+        stationNames: ['South Kensington', 'Knightsbridge', 'Piccadilly Circus', 'Leicester Square']
+      },
+      {
+        lineId: 'central',
+        name: 'Central',
+        color: '#ee352e',
+        outline: '#b01e1e',
+        coords: [[51.5158, -0.0823], [51.5133, -0.089], [51.5146, -0.0975], [51.5183, -0.1119], [51.5174, -0.1201], [51.5165, -0.1309], [51.5152, -0.141], [51.5144, -0.1497], [51.5136, -0.1587]],
+        stationNames: ['Liverpool Street', 'Bank', "St Paul's", 'Chancery Lane', 'Holborn', 'Tottenham Court Road', 'Oxford Circus', 'Bond Street', 'Marble Arch']
+      },
+      {
+        lineId: 'jubilee',
+        name: 'Jubilee',
+        color: '#a0a5a9',
+        outline: '#6b7280',
+        coords: [[51.5007, -0.1247], [51.5032, -0.114], [51.5055, -0.0865], [51.4979, -0.0647]],
+        stationNames: ['Westminster', 'Waterloo', 'London Bridge', 'Canada Water']
+      },
+      {
+        lineId: 'district',
+        name: 'District',
+        color: '#00782a',
+        outline: '#004d1a',
+        coords: [[51.501, -0.1254], [51.507, -0.122], [51.511, -0.114], [51.5109, -0.1036], [51.5107, -0.086], [51.5144, -0.0756]],
+        stationNames: ['Westminster', 'Embankment', 'Temple', 'Blackfriars', 'Monument', 'Aldgate East']
+      },
+      {
+        lineId: 'northern',
+        name: 'Northern',
+        color: '#000000',
+        outline: '#333333',
+        coords: [[51.5077, -0.124], [51.511, -0.0902], [51.5183, -0.1058], [51.5229, -0.1441]],
+        stationNames: ['Charing Cross', 'Bank', 'Old Street', "King's Cross St Pancras"]
+      },
+      {
+        lineId: 'bakerloo',
+        name: 'Bakerloo',
+        color: '#b36305',
+        outline: '#7a4403',
+        coords: [[51.5231, -0.1569], [51.5229, -0.1441], [51.5186, -0.136], [51.5153, -0.1411], [51.5077, -0.124]],
+        stationNames: ['Paddington', "Edgware Road", 'Oxford Circus', 'Piccadilly Circus', 'Charing Cross']
+      },
+      {
+        lineId: 'circle',
+        name: 'Circle',
+        color: '#ffd320',
+        outline: '#c9a600',
+        coords: [[51.5157, -0.1755], [51.5231, -0.1569], [51.5229, -0.1441], [51.5152, -0.141], [51.5111, -0.1334], [51.5105, -0.1143], [51.5033, -0.1144], [51.501, -0.1255]],
+        stationNames: ['Paddington', 'Bayswater', 'Notting Hill Gate', 'South Kensington', 'Westminster', 'Embankment', 'Monument', 'Tower Hill']
+      },
+      {
+        lineId: 'hsmith',
+        name: 'Hammersmith & City',
+        color: '#f3a9bb',
+        outline: '#c77b90',
+        coords: [[51.5157, -0.1755], [51.5186, -0.1783], [51.5238, -0.177], [51.5304, -0.1236], [51.5225, -0.087], [51.5178, -0.0813]],
+        stationNames: ['Paddington', 'Royal Oak', 'Westbourne Park', "Shepherd's Bush", 'Liverpool Street', 'Aldgate East']
+      },
+      {
+        lineId: 'metropolitan',
+        name: 'Metropolitan',
+        color: '#9b0056',
+        outline: '#5c0033',
+        coords: [[51.5236, -0.1577], [51.5225, -0.1439], [51.5154, -0.0925]],
+        stationNames: ['Baker Street', "King's Cross St Pancras", 'Liverpool Street']
+      }
+    ];
+
+    function buildLondonStationList(tourismStations, lineDefs) {
+      var degNear = 0.003;
+      function nearTube(a, b) {
+        return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2)) < degNear;
+      }
+      var gen = [];
+      lineDefs.forEach(function(def) {
+        def.coords.forEach(function(coord, i) {
+          if (!def.stationNames[i]) return;
+          gen.push({
+            id: 'lon-' + def.lineId + '-' + i,
+            name: def.stationNames[i],
+            lat: coord[0],
+            lng: coord[1],
+            tubeLineKey: def.lineId,
+            places: []
+          });
+        });
+      });
+      var filtered = gen.filter(function(g) {
+        return !tourismStations.some(function(t) {
+          return t.tubeLineKey === g.tubeLineKey && nearTube(t, g);
+        });
+      });
+      return tourismStations.concat(filtered);
+    }
+
+    var stationsLondonTourism = [
+      {
+        id: 'lon-westminster',
+        name: 'Westminster',
+        lat: 51.501,
+        lng: -0.1246,
+        tubeLineKey: 'jubilee',
+        places: [
+          { name: 'Big Ben', distance: 200, walkMin: 3, lat: 51.5007, lng: -0.1246 },
+          { name: 'London Eye', distance: 400, walkMin: 6, lat: 51.5033, lng: -0.1195 },
+          { name: 'St James Park', distance: 500, walkMin: 7, lat: 51.5023, lng: -0.1348 }
+        ]
+      },
+      {
+        id: 'lon-oxford',
+        name: 'Oxford Circus',
+        lat: 51.5152,
+        lng: -0.141,
+        tubeLineKey: 'central',
+        places: [
+          { name: 'British Museum', distance: 900, walkMin: 12, lat: 51.5194, lng: -0.127 },
+          { name: 'Soho', distance: 300, walkMin: 5, lat: 51.5138, lng: -0.1319 },
+          { name: 'Regent Street', distance: 150, walkMin: 2, lat: 51.5141, lng: -0.1384 }
+        ]
+      },
+      {
+        id: 'lon-bridge',
+        name: 'London Bridge',
+        lat: 51.5055,
+        lng: -0.0865,
+        tubeLineKey: 'jubilee',
+        places: [
+          { name: 'Borough Market', distance: 200, walkMin: 3, lat: 51.5055, lng: -0.091 },
+          { name: 'Tower Bridge', distance: 800, walkMin: 11, lat: 51.5055, lng: -0.0754 },
+          { name: 'The Shard', distance: 150, walkMin: 2, lat: 51.5045, lng: -0.0865 }
+        ]
+      },
+      {
+        id: 'lon-kingsx',
+        name: "King's Cross St Pancras",
+        lat: 51.5308,
+        lng: -0.1238,
+        tubeLineKey: 'piccadilly',
+        places: [
+          { name: 'British Library', distance: 250, walkMin: 4, lat: 51.5299, lng: -0.1277 },
+          { name: 'Regent Canal', distance: 400, walkMin: 6, lat: 51.5341, lng: -0.1229 }
+        ]
+      },
+      {
+        id: 'lon-paddington',
+        name: 'Paddington',
+        lat: 51.5154,
+        lng: -0.1755,
+        tubeLineKey: 'bakerloo',
+        places: [
+          { name: 'Hyde Park', distance: 600, walkMin: 9, lat: 51.5073, lng: -0.1657 },
+          { name: 'Little Venice', distance: 1200, walkMin: 18, lat: 51.5238, lng: -0.1726 }
+        ]
+      },
+      {
+        id: 'lon-bank',
+        name: 'Bank',
+        lat: 51.5133,
+        lng: -0.0886,
+        tubeLineKey: 'northern',
+        places: [
+          { name: 'Sky Garden', distance: 700, walkMin: 10, lat: 51.5102, lng: -0.0865 },
+          { name: 'Leadenhall Market', distance: 400, walkMin: 6, lat: 51.5126, lng: -0.0834 }
+        ]
+      }
+    ];
+
+    var stationsLondon = buildLondonStationList(stationsLondonTourism, londonLineDefs);
+
+    /** 뉴욕 MTA: lineId는 범례·마커·히트 레이어와 동일 키 */
+    var nycLineDefs = [
+      {
+        lineId: 'ny123',
+        name: '1·2·3',
+        color: '#ee352e',
+        outline: '#a82018',
+        coords: [
+          [40.70278, -74.01426],
+          [40.71144, -74.00926],
+          [40.73782, -73.99989],
+          [40.75529, -73.9875],
+          [40.76825, -73.98193],
+          [40.78728, -73.97524]
+        ],
+        stationNames: ['South Ferry', 'Park Place', '14 St', 'Times Sq-42 St', '59 St-Columbus Circle', '86 St']
+      },
+      {
+        lineId: 'ny456',
+        name: '4·5·6',
+        color: '#00933c',
+        outline: '#005928',
+        coords: [
+          [40.70784, -74.00206],
+          [40.75277, -73.9772],
+          [40.76266, -73.96726],
+          [40.78567, -73.9479],
+          [40.80444, -73.93351]
+        ],
+        stationNames: ['Brooklyn Bridge-City Hall', 'Grand Central-42 St', '59 St', '86 St', '125 St']
+      },
+      {
+        lineId: 'nyACE',
+        name: 'A·C·E',
+        color: '#2850ad',
+        outline: '#1a3470',
+        coords: [
+          [40.69934, -73.99057],
+          [40.71037, -74.00739],
+          [40.720824, -74.000172],
+          [40.732218, -73.99053],
+          [40.752287, -73.993391]
+        ],
+        stationNames: ['High St', 'Fulton St', 'Canal St', '14 St', '42 St-Port Authority']
+      },
+      {
+        lineId: 'nyNQRW',
+        name: 'N·Q·R·W',
+        color: '#fccc0a',
+        outline: '#b89600',
+        coords: [
+          [40.71809, -73.99989],
+          [40.73578, -73.99057],
+          [40.74722, -73.98044],
+          [40.75529, -73.9875],
+          [40.76481, -73.97335]
+        ],
+        stationNames: ['Canal St', 'Union Sq', 'Herald Sq', 'Times Sq-42 St', '57 St-7 Av']
+      },
+      {
+        lineId: 'nyL',
+        name: 'L',
+        color: '#a7a9ac',
+        outline: '#6b7280',
+        coords: [
+          [40.71406, -73.95086],
+          [40.7173, -73.95689],
+          [40.73414, -73.99067],
+          [40.739777, -74.002578]
+        ],
+        stationNames: ['Bedford Av', '1 Av', 'Union Sq', '8 Av']
+      },
+      {
+        lineId: 'ny7',
+        name: '7',
+        color: '#b933ad',
+        outline: '#7a1f75',
+        coords: [
+          [40.75529, -73.9875],
+          [40.75529, -73.98275],
+          [40.75552, -73.95439],
+          [40.74894, -73.89188]
+        ],
+        stationNames: ['Times Sq-42 St', '5 Av', 'Queensboro Plaza', 'Flushing-Main St']
+      }
+    ];
+
+    function buildNYCStationList(tourismStations, lineDefs) {
+      var degNear = 0.003;
+      function nearTube(a, b) {
+        return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2)) < degNear;
+      }
+      var gen = [];
+      lineDefs.forEach(function(def) {
+        def.coords.forEach(function(coord, i) {
+          if (!def.stationNames[i]) return;
+          gen.push({
+            id: 'nyc-' + def.lineId + '-' + i,
+            name: def.stationNames[i],
+            lat: coord[0],
+            lng: coord[1],
+            tubeLineKey: def.lineId,
+            places: []
+          });
+        });
+      });
+      var filtered = gen.filter(function(g) {
+        return !tourismStations.some(function(t) {
+          return nearTube(t, g);
+        });
+      });
+      return tourismStations.concat(filtered);
+    }
+
+    var stationsNYCTourism = [
+      {
+        id: 'nyc-timesq',
+        name: 'Times Sq-42 St',
+        lat: 40.75529,
+        lng: -73.9875,
+        tubeLineKey: 'ny123',
+        places: [
+          { name: 'Times Square', distance: 0, walkMin: 0, lat: 40.75529, lng: -73.9875 },
+          { name: 'Broadway Theaters', distance: 200, walkMin: 3, lat: 40.7564, lng: -73.9855 },
+          { name: 'Bryant Park', distance: 500, walkMin: 7, lat: 40.7536, lng: -73.9832 }
+        ]
+      },
+      {
+        id: 'nyc-grandcentral',
+        name: 'Grand Central-42 St',
+        lat: 40.75277,
+        lng: -73.9772,
+        tubeLineKey: 'ny456',
+        places: [
+          { name: 'Grand Central Terminal', distance: 0, walkMin: 0, lat: 40.75277, lng: -73.9772 },
+          { name: 'Chrysler Building', distance: 400, walkMin: 6, lat: 40.75165, lng: -73.97553 },
+          { name: 'NY Public Library', distance: 350, walkMin: 5, lat: 40.75318, lng: -73.98223 }
+        ]
+      },
+      {
+        id: 'nyc-wtc',
+        name: 'Fulton St',
+        lat: 40.71037,
+        lng: -74.00739,
+        tubeLineKey: 'nyACE',
+        places: [
+          { name: '9/11 Memorial', distance: 350, walkMin: 5, lat: 40.7115, lng: -74.0133 },
+          { name: 'One World Observatory', distance: 400, walkMin: 6, lat: 40.713, lng: -74.0133 },
+          { name: 'The Oculus', distance: 200, walkMin: 3, lat: 40.7113, lng: -74.01 }
+        ]
+      },
+      {
+        id: 'nyc-unionsq',
+        name: 'Union Sq',
+        lat: 40.73578,
+        lng: -73.99057,
+        tubeLineKey: 'nyNQRW',
+        places: [
+          { name: 'Union Square Greenmarket', distance: 0, walkMin: 0, lat: 40.73578, lng: -73.99057 },
+          { name: 'Strand Bookstore', distance: 450, walkMin: 6, lat: 40.7333, lng: -73.9909 },
+          { name: 'Flatiron Building', distance: 800, walkMin: 11, lat: 40.74106, lng: -73.9897 }
+        ]
+      },
+      {
+        id: 'nyc-columbus',
+        name: '59 St-Columbus Circle',
+        lat: 40.76825,
+        lng: -73.98193,
+        tubeLineKey: 'ny123',
+        places: [
+          { name: 'Central Park South', distance: 200, walkMin: 3, lat: 40.767, lng: -73.981 },
+          { name: 'Lincoln Center', distance: 500, walkMin: 7, lat: 40.772, lng: -73.984 },
+          { name: 'American Museum of Natural History', distance: 700, walkMin: 10, lat: 40.7813, lng: -73.9737 }
+        ]
+      },
+      {
+        id: 'nyc-highst',
+        name: 'High St',
+        lat: 40.69934,
+        lng: -73.99057,
+        tubeLineKey: 'nyACE',
+        places: [
+          { name: 'Brooklyn Bridge Walk', distance: 600, walkMin: 9, lat: 40.7061, lng: -73.9969 },
+          { name: 'DUMBO Waterfront', distance: 900, walkMin: 12, lat: 40.7033, lng: -73.988 },
+          { name: 'Brooklyn Heights Promenade', distance: 700, walkMin: 10, lat: 40.6965, lng: -73.997 }
+        ]
+      }
+    ];
+
+    var stationsNYC = buildNYCStationList(stationsNYCTourism, nycLineDefs);
+
+    /** 도쿄 메트로·도에이: lineId는 범례·마커와 동일 (tm 접두로 키 충돌 방지) */
+    var tokyoLineDefs = [
+      {
+        lineId: 'tmginza',
+        name: '銀座線',
+        color: '#ff9500',
+        outline: '#c97800',
+        coords: [
+          [35.658, 139.7016],
+          [35.6652, 139.7127],
+          [35.6719, 139.765],
+          [35.6812, 139.7671],
+          [35.714, 139.7753]
+        ],
+        stationNames: ['Shibuya', 'Omotesando', 'Ginza', 'Tokyo', 'Ueno']
+      },
+      {
+        lineId: 'tmmarunouchi',
+        name: '丸ノ内線',
+        color: '#e60012',
+        outline: '#99000c',
+        coords: [
+          [35.6905, 139.6996],
+          [35.6842, 139.7301],
+          [35.677, 139.7364],
+          [35.6812, 139.7671],
+          [35.687, 139.7643]
+        ],
+        stationNames: ['Shinjuku', 'Yotsuya', 'Akasaka-mitsuke', 'Tokyo', 'Otemachi']
+      },
+      {
+        lineId: 'tmhibiya',
+        name: '日比谷線',
+        color: '#b5b5ac',
+        outline: '#8a8a82',
+        coords: [
+          [35.6467, 139.7101],
+          [35.6628, 139.7314],
+          [35.6738, 139.7599],
+          [35.6719, 139.765],
+          [35.6649, 139.7735]
+        ],
+        stationNames: ['Ebisu', 'Roppongi', 'Kasumigaseki', 'Ginza', 'Tsukiji']
+      },
+      {
+        lineId: 'tmtozai',
+        name: '東西線',
+        color: '#009bbf',
+        outline: '#006b85',
+        coords: [
+          [35.7056, 139.6655],
+          [35.7127, 139.7036],
+          [35.6955, 139.7519],
+          [35.687, 139.7643],
+          [35.6718, 139.7951]
+        ],
+        stationNames: ['Nakano', 'Takadanobaba', 'Kudanshita', 'Otemachi', 'Monzen-nakacho']
+      },
+      {
+        lineId: 'tmchiyoda',
+        name: '千代田線',
+        color: '#00bb85',
+        outline: '#00805c',
+        coords: [
+          [35.6696, 139.7022],
+          [35.6652, 139.7127],
+          [35.6723, 139.7262],
+          [35.6738, 139.7599],
+          [35.687, 139.7643]
+        ],
+        stationNames: ['Meiji-jingumae', 'Omotesando', 'Nogizaka', 'Kasumigaseki', 'Otemachi']
+      },
+      {
+        lineId: 'tmoedo',
+        name: '大江戸線',
+        color: '#b6007a',
+        outline: '#7a0052',
+        coords: [
+          [35.6628, 139.7314],
+          [35.6626, 139.7599],
+          [35.655, 139.7908],
+          [35.6965, 139.7932],
+          [35.7015, 139.7445],
+          [35.6905, 139.6996]
+        ],
+        stationNames: ['Roppongi', 'Shiodome', 'Tsukishima', 'Ryogoku', 'Iidabashi', 'Shinjuku']
+      }
+    ];
+
+    function buildTokyoStationList(tourismStations, lineDefs) {
+      var degNear = 0.003;
+      function nearTube(a, b) {
+        return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2)) < degNear;
+      }
+      var gen = [];
+      lineDefs.forEach(function(def) {
+        def.coords.forEach(function(coord, i) {
+          if (!def.stationNames[i]) return;
+          gen.push({
+            id: 'tok-' + def.lineId + '-' + i,
+            name: def.stationNames[i],
+            lat: coord[0],
+            lng: coord[1],
+            tubeLineKey: def.lineId,
+            places: []
+          });
+        });
+      });
+      var filtered = gen.filter(function(g) {
+        return !tourismStations.some(function(t) {
+          return t.tubeLineKey === g.tubeLineKey && nearTube(t, g);
+        });
+      });
+      return tourismStations.concat(filtered);
+    }
+
+    var stationsTokyoTourism = [
+      {
+        id: 'tok-shibuya',
+        name: 'Shibuya',
+        lat: 35.658,
+        lng: 139.7016,
+        tubeLineKey: 'tmginza',
+        places: [
+          { name: 'Shibuya Scramble Crossing', distance: 120, walkMin: 2, lat: 35.6595, lng: 139.7006 },
+          { name: 'Hachiko Square', distance: 80, walkMin: 1, lat: 35.659, lng: 139.7007 },
+          { name: 'Meiji Jingu approach (Harajuku)', distance: 900, walkMin: 12, lat: 35.6723, lng: 139.6993 }
+        ]
+      },
+      {
+        id: 'tok-shinjuku',
+        name: 'Shinjuku',
+        lat: 35.6905,
+        lng: 139.6996,
+        tubeLineKey: 'tmmarunouchi',
+        places: [
+          { name: 'Shinjuku Gyoen National Garden', distance: 900, walkMin: 12, lat: 35.6852, lng: 139.7101 },
+          { name: 'Kabukicho area', distance: 600, walkMin: 8, lat: 35.6938, lng: 139.7034 },
+          { name: 'Tokyo Metropolitan Government Building', distance: 700, walkMin: 10, lat: 35.6874, lng: 139.6917 }
+        ]
+      },
+      {
+        id: 'tok-tokyo-st',
+        name: 'Tokyo',
+        lat: 35.6812,
+        lng: 139.7671,
+        tubeLineKey: 'tmmarunouchi',
+        places: [
+          { name: 'Tokyo Station Marunouchi', distance: 150, walkMin: 2, lat: 35.6812, lng: 139.7644 },
+          { name: 'KITTE / JP Tower', distance: 200, walkMin: 3, lat: 35.6803, lng: 139.7655 },
+          { name: 'Imperial Palace East Garden', distance: 1200, walkMin: 18, lat: 35.6853, lng: 139.7528 }
+        ]
+      },
+      {
+        id: 'tok-ginza',
+        name: 'Ginza',
+        lat: 35.6719,
+        lng: 139.765,
+        tubeLineKey: 'tmhibiya',
+        places: [
+          { name: 'Ginza Chuo-dori', distance: 100, walkMin: 2, lat: 35.6715, lng: 139.764 },
+          { name: 'Kabukiza Theatre', distance: 400, walkMin: 6, lat: 35.6696, lng: 139.7679 },
+          { name: 'Tsukiji Outer Market', distance: 900, walkMin: 12, lat: 35.6654, lng: 139.7707 }
+        ]
+      },
+      {
+        id: 'tok-tsukiji',
+        name: 'Tsukiji',
+        lat: 35.6649,
+        lng: 139.7735,
+        tubeLineKey: 'tmhibiya',
+        places: [
+          { name: 'Tsukiji Outer Market', distance: 300, walkMin: 5, lat: 35.6654, lng: 139.7707 },
+          { name: 'Hama-rikyu Gardens', distance: 800, walkMin: 11, lat: 35.6562, lng: 139.7678 }
+        ]
+      },
+      {
+        id: 'tok-ueno',
+        name: 'Ueno',
+        lat: 35.714,
+        lng: 139.7753,
+        tubeLineKey: 'tmginza',
+        places: [
+          { name: 'Ueno Park', distance: 250, walkMin: 4, lat: 35.7156, lng: 139.7735 },
+          { name: 'Ameyoko Market', distance: 400, walkMin: 6, lat: 35.712, lng: 139.7748 },
+          { name: 'Tokyo National Museum', distance: 600, walkMin: 9, lat: 35.7188, lng: 139.7765 }
+        ]
+      },
+      {
+        id: 'tok-otemachi',
+        name: 'Otemachi',
+        lat: 35.687,
+        lng: 139.7643,
+        tubeLineKey: 'tmtozai',
+        places: [
+          { name: 'Imperial Palace East Garden', distance: 800, walkMin: 11, lat: 35.6853, lng: 139.7528 },
+          { name: 'Nihombashi bridge area', distance: 700, walkMin: 10, lat: 35.6844, lng: 139.774 },
+          { name: 'Marunouchi brick square', distance: 400, walkMin: 6, lat: 35.6815, lng: 139.763 }
+        ]
+      },
+      {
+        id: 'tok-omotesando-ch',
+        name: 'Omotesando',
+        lat: 35.6652,
+        lng: 139.7127,
+        tubeLineKey: 'tmchiyoda',
+        places: [
+          { name: 'Omotesando Hills', distance: 200, walkMin: 3, lat: 35.6672, lng: 139.7089 },
+          { name: 'Cat Street Harajuku', distance: 500, walkMin: 7, lat: 35.67, lng: 139.706 },
+          { name: 'Nezu Museum garden', distance: 1200, walkMin: 16, lat: 35.6617, lng: 139.7182 }
+        ]
+      },
+      {
+        id: 'tok-roppongi',
+        name: 'Roppongi',
+        lat: 35.6628,
+        lng: 139.7314,
+        tubeLineKey: 'tmoedo',
+        places: [
+          { name: 'Roppongi Hills / Mori Art Museum', distance: 250, walkMin: 4, lat: 35.6604, lng: 139.7292 },
+          { name: 'National Art Center Tokyo', distance: 400, walkMin: 6, lat: 35.6652, lng: 139.731 },
+          { name: 'Azabu Juban shopping street', distance: 900, walkMin: 12, lat: 35.656, lng: 139.736 }
+        ]
+      }
+    ];
+
+    var stationsTokyo = buildTokyoStationList(stationsTokyoTourism, tokyoLineDefs);
+
+    /** 방콕 BTS·MRT·ARL: lineId는 범례·마커와 동일 (bk 접두) */
+    var bangkokLineDefs = [
+      {
+        lineId: 'bksukhumvit',
+        name: 'BTS Sukhumvit',
+        color: '#76b82a',
+        outline: '#4d7a1c',
+        coords: [
+          [13.8025, 100.5538],
+          [13.7709, 100.544],
+          [13.7465, 100.5395],
+          [13.7456, 100.5349],
+          [13.7443, 100.5412],
+          [13.7373, 100.5603],
+          [13.7308, 100.5698],
+          [13.7243, 100.5783],
+          [13.7195, 100.5855]
+        ],
+        stationNames: [
+          'Mo Chit',
+          'Saphan Khwai',
+          'Victory Monument',
+          'Siam',
+          'Chit Lom',
+          'Asok',
+          'Phrom Phong',
+          'Thong Lo',
+          'Ekkamai'
+        ]
+      },
+      {
+        lineId: 'bksilom',
+        name: 'BTS Silom',
+        color: '#006747',
+        outline: '#004530',
+        coords: [
+          [13.7464, 100.5291],
+          [13.7456, 100.5349],
+          [13.7285, 100.5363],
+          [13.7233, 100.5297],
+          [13.722, 100.5138]
+        ],
+        stationNames: ['National Stadium', 'Siam', 'Sala Daeng', 'Chong Nonsi', 'Saphan Taksin']
+      },
+      {
+        lineId: 'bkmblue',
+        name: 'MRT Blue',
+        color: '#1e4090',
+        outline: '#132a5c',
+        coords: [
+          [13.7375, 100.517],
+          [13.732, 100.5305],
+          [13.7293, 100.5365],
+          [13.737, 100.5609],
+          [13.8035, 100.5535],
+          [13.8015, 100.5535]
+        ],
+        stationNames: ['Hua Lamphong', 'Sam Yan', 'Si Lom', 'Sukhumvit (MRT)', 'Chatuchak Park', 'Bang Sue']
+      },
+      {
+        lineId: 'bkmpurple',
+        name: 'MRT Purple',
+        color: '#7b388e',
+        outline: '#52255e',
+        coords: [
+          [13.806, 100.5215],
+          [13.793, 100.505],
+          [13.8592, 100.513]
+        ],
+        stationNames: ['Tao Poon', 'Bang Phlat', 'Nonthaburi Civic Center']
+      },
+      {
+        lineId: 'bkarl',
+        name: 'Airport Rail Link',
+        color: '#8b1a1a',
+        outline: '#5c1111',
+        coords: [
+          [13.69, 100.75],
+          [13.737, 100.645],
+          [13.723, 100.56],
+          [13.754, 100.5535],
+          [13.7567, 100.5409]
+        ],
+        stationNames: ['Suvarnabhumi Airport', 'Ramkhamhaeng', 'Makkasan', 'Ratchaprarop', 'Phaya Thai']
+      }
+    ];
+
+    function buildBangkokStationList(tourismStations, lineDefs) {
+      var degNear = 0.003;
+      function nearTube(a, b) {
+        return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2)) < degNear;
+      }
+      var gen = [];
+      lineDefs.forEach(function(def) {
+        def.coords.forEach(function(coord, i) {
+          if (!def.stationNames[i]) return;
+          gen.push({
+            id: 'bkk-' + def.lineId + '-' + i,
+            name: def.stationNames[i],
+            lat: coord[0],
+            lng: coord[1],
+            tubeLineKey: def.lineId,
+            places: []
+          });
+        });
+      });
+      var filtered = gen.filter(function(g) {
+        return !tourismStations.some(function(t) {
+          return t.tubeLineKey === g.tubeLineKey && nearTube(t, g);
+        });
+      });
+      return tourismStations.concat(filtered);
+    }
+
+    var stationsBangkokTourism = [
+      {
+        id: 'bkk-siam',
+        name: 'Siam',
+        lat: 13.7456,
+        lng: 100.5349,
+        tubeLineKey: 'bksukhumvit',
+        places: [
+          { name: 'Siam Paragon', distance: 200, walkMin: 3, lat: 13.7465, lng: 100.5341 },
+          { name: 'MBK Center', distance: 350, walkMin: 5, lat: 13.7445, lng: 100.53 },
+          { name: 'Jim Thompson House', distance: 900, walkMin: 12, lat: 13.7497, lng: 100.5269 }
+        ]
+      },
+      {
+        id: 'bkk-asok',
+        name: 'Asok',
+        lat: 13.7373,
+        lng: 100.5603,
+        tubeLineKey: 'bksukhumvit',
+        places: [
+          { name: 'Terminal 21 Asok', distance: 120, walkMin: 2, lat: 13.736, lng: 100.561 },
+          { name: 'Benjakitti Park', distance: 700, walkMin: 10, lat: 13.732, lng: 100.558 },
+          { name: 'Soi Cowboy (night market strip)', distance: 400, walkMin: 6, lat: 13.7368, lng: 100.5628 }
+        ]
+      },
+      {
+        id: 'bkk-mochit',
+        name: 'Mo Chit',
+        lat: 13.8025,
+        lng: 100.5538,
+        tubeLineKey: 'bksukhumvit',
+        places: [
+          { name: 'Chatuchak Weekend Market', distance: 400, walkMin: 6, lat: 13.799, lng: 100.55 },
+          { name: 'Chatuchak Park', distance: 500, walkMin: 7, lat: 13.8035, lng: 100.5535 },
+          { name: 'Queen Sirikit Park', distance: 800, walkMin: 11, lat: 13.805, lng: 100.556 }
+        ]
+      },
+      {
+        id: 'bkk-samyan',
+        name: 'Sam Yan',
+        lat: 13.732,
+        lng: 100.5305,
+        tubeLineKey: 'bkmblue',
+        places: [
+          { name: 'Wat Traimit (Golden Buddha)', distance: 900, walkMin: 12, lat: 13.7379, lng: 100.5135 },
+          { name: 'Yaowarat (Chinatown) walk', distance: 1200, walkMin: 16, lat: 13.741, lng: 100.508 },
+          { name: 'Chamchuri Square', distance: 300, walkMin: 5, lat: 13.7335, lng: 100.527 }
+        ]
+      },
+      {
+        id: 'bkk-taksin',
+        name: 'Saphan Taksin',
+        lat: 13.722,
+        lng: 100.5138,
+        tubeLineKey: 'bksilom',
+        places: [
+          { name: 'Chao Phraya express boat pier', distance: 150, walkMin: 2, lat: 13.7215, lng: 100.5145 },
+          { name: 'Iconsiam (ferry)', distance: 2500, walkMin: 35, lat: 13.7265, lng: 100.5105 },
+          { name: 'Asiatique riverfront (shuttle)', distance: 3500, walkMin: 45, lat: 13.705, lng: 100.503 }
+        ]
+      },
+      {
+        id: 'bkk-phayathai',
+        name: 'Phaya Thai',
+        lat: 13.7567,
+        lng: 100.5409,
+        tubeLineKey: 'bkarl',
+        places: [
+          { name: 'Pratunam Market', distance: 500, walkMin: 7, lat: 13.754, lng: 100.5415 },
+          { name: 'Platinum Fashion Mall', distance: 600, walkMin: 9, lat: 13.7527, lng: 100.54 },
+          { name: 'Ratchathewi skywalk', distance: 350, walkMin: 5, lat: 13.758, lng: 100.537 }
+        ]
+      },
+      {
+        id: 'bkk-taopoon',
+        name: 'Tao Poon',
+        lat: 13.806,
+        lng: 100.5215,
+        tubeLineKey: 'bkmpurple',
+        places: [
+          { name: 'Tao Poon interchange plaza', distance: 200, walkMin: 3, lat: 13.8065, lng: 100.522 },
+          { name: 'Local canal-side walk', distance: 600, walkMin: 9, lat: 13.81, lng: 100.518 },
+          { name: 'Nonthaburi road cafés', distance: 800, walkMin: 11, lat: 13.802, lng: 100.528 }
+        ]
+      },
+      {
+        id: 'bkk-suv',
+        name: 'Suvarnabhumi Airport',
+        lat: 13.69,
+        lng: 100.75,
+        tubeLineKey: 'bkarl',
+        places: []
+      }
+    ];
+
+    var stationsBangkok = buildBangkokStationList(stationsBangkokTourism, bangkokLineDefs);
+
+    var PER_PAGE = 5;
+    var MAX_WALK_MIN = 9999; // 필터 해제: 관광지 전부 팝업에 표시(원래 60)
+
+    /**
+     * 목적지별 추천 상품 (예시·데모 데이터)
+     * 각 항목: 상품명 name, 판매가 price(원), 할인율 discountPercent(0–100), 썸네일 thumbnailUrl
+     * 키는 역 팝업에서 클릭한 관광지 place.name 과 동일해야 합니다.
+     */
+    var DESTINATION_PRODUCTS = {
+      경복궁: [
+        {
+          name: '경복궁 한복 대여권 (2시간)',
+          price: 18900,
+          discountPercent: 18,
+          thumbnailUrl: 'https://picsum.photos/seed/hanatour-gb-hanbok/144/144'
+        },
+        {
+          name: '경복궁 입장권',
+          price: 3000,
+          discountPercent: 8,
+          thumbnailUrl: 'https://picsum.photos/seed/hanatour-gb-ticket/144/144'
+        },
+        {
+          name: '경복궁 궁중 해설 투어 패키지',
+          price: 35000,
+          discountPercent: 12,
+          thumbnailUrl: 'https://picsum.photos/seed/hanatour-gb-tour/144/144'
+        }
+      ]
+    };
+
+    (function fillDemoDestinationProducts() {
+      var names = [
+        '강남역 지하상가',
+        '코엑스 아쿠아리움',
+        '선릉역 유적',
+        '강남대로 쇼핑',
+        '역삼 맛집거리',
+        '논현동 카페거리',
+        '롯데월드',
+        '석촌호수',
+        '잠실야구장',
+        '롯데월드타워',
+        '홍대 거리',
+        '경의대로 벽화거리',
+        '플레이스그라운드',
+        '맛집 골목',
+        '홍대 클럽거리',
+        '서울창업허브',
+        '코엑스',
+        '봉은사',
+        '스타필드 코엑스몰',
+        '선정릉',
+        '도산공원',
+        '가로수길',
+        '디큐브시티',
+        '구로디지털단지',
+        '덕수궁',
+        '남산서울타워',
+        '명동거리',
+        '서울역 광장',
+        '전쟁기념관',
+        '이태원 거리',
+        '용산공원',
+        '인사동',
+        '청계천',
+        '광장시장',
+        '종로 거리',
+        '창덕궁',
+        '북촌 한옥마을',
+        '동대문시장',
+        '동대문디자인플라자',
+        '흥인지문',
+        '청량리시장',
+        '회기동 맛집거리',
+        'Big Ben',
+        'London Eye',
+        'St James Park',
+        'British Museum',
+        'Soho',
+        'Regent Street',
+        'Borough Market',
+        'Tower Bridge',
+        'The Shard',
+        'British Library',
+        'Regent Canal',
+        'Hyde Park',
+        'Little Venice',
+        'Sky Garden',
+        'Leadenhall Market',
+        'Times Square',
+        'Broadway Theaters',
+        'Bryant Park',
+        'Grand Central Terminal',
+        'Chrysler Building',
+        'NY Public Library',
+        '9/11 Memorial',
+        'One World Observatory',
+        'The Oculus',
+        'Union Square Greenmarket',
+        'Strand Bookstore',
+        'Flatiron Building',
+        'Central Park South',
+        'Lincoln Center',
+        'American Museum of Natural History',
+        'Brooklyn Bridge Walk',
+        'DUMBO Waterfront',
+        'Brooklyn Heights Promenade'
+      ];
+      names.forEach(function(n, i) {
+        if (DESTINATION_PRODUCTS[n]) return;
+        DESTINATION_PRODUCTS[n] = buildEphemeralDemoProducts(n, i);
+      });
+    })();
+
+    /** 목적지명 기준 해시(가격·썸네일 시드용) */
+    function hashPlaceProducts(name) {
+      var h = 0;
+      for (var j = 0; j < String(name).length; j++) h = ((h << 5) - h + String(name).charCodeAt(j)) | 0;
+      return Math.abs(h);
+    }
+
+    /** PRODUCTS에 없을 때도 동일 형식의 데모 상품 3종 */
+    function buildEphemeralDemoProducts(destinationName, indexHint) {
+      var h = hashPlaceProducts(destinationName);
+      var i = indexHint != null ? indexHint : h % 97;
+      return [
+        {
+          name: destinationName + ' 반나절 예시 투어',
+          price: 22000 + (h % 9000),
+          discountPercent: 10 + (i % 12),
+          thumbnailUrl: 'https://picsum.photos/seed/ht-dp-' + h + '-a/144/144'
+        },
+        {
+          name: destinationName + ' 입장·체험권(데모)',
+          price: 8900 + (h % 5000),
+          discountPercent: 7 + (i % 8),
+          thumbnailUrl: 'https://picsum.photos/seed/ht-dp-' + h + '-b/144/144'
+        },
+        {
+          name: destinationName + ' 굿즈+식음료 패키지(예시)',
+          price: 15900 + (h % 7000),
+          discountPercent: 15 + (i % 10),
+          thumbnailUrl: 'https://picsum.photos/seed/ht-dp-' + h + '-c/144/144'
+        }
+      ];
+    }
+
+    function getRecommendedProductsForDestination(destinationName) {
+      if (!destinationName) return [];
+      var rows = DESTINATION_PRODUCTS[destinationName];
+      if (rows && rows.length) return rows;
+      return buildEphemeralDemoProducts(destinationName);
+    }
+
+    function formatKrw(price) {
+      return price.toLocaleString('ko-KR') + '원';
+    }
+
+    /** 예시 상품 카드 → 하나투어 사이트(새 창). 검색어는 쿼리로만 전달(데모용). */
+    function buildHanatourDemoProductHref(destinationName, productName) {
+      var keyword = (destinationName + ' ' + productName).replace(/\s+/g, ' ').trim();
+      return 'https://www.hanatour.com/?searchKeyword=' + encodeURIComponent(keyword);
+    }
+
+    var productModalOverlay = null;
+    /** 상품 모달을 닫은 뒤에는 true → 다음 목적지 피커 클릭 시 경로·마커 초기화 */
+    var destinationPickerProductArmed = false;
+    /** 역 팝업에서 고른 목적지(피커 클릭·모달 문구용) */
+    var lastDestinationContext = null;
+
+    function closeProductRecommendModal(opt) {
+      opt = opt || {};
+      if (!productModalOverlay) productModalOverlay = document.getElementById('product-modal-overlay');
+      if (!productModalOverlay) return;
+      var wasOpen = productModalOverlay.classList.contains('is-open');
+      productModalOverlay.classList.remove('is-open');
+      productModalOverlay.setAttribute('aria-hidden', 'true');
+      productModalOverlay.hidden = true;
+      var ctxArm = lastDestinationContext && metroByKey[lastDestinationContext.metroKey];
+      if (
+        !opt.skipArmPicker &&
+        wasOpen &&
+        lastDestinationContext &&
+        ctxArm &&
+        ctxArm.currentPlaceMarker
+      ) {
+        var nm = lastDestinationContext.place && lastDestinationContext.place.name;
+        if (nm && getRecommendedProductsForDestination(nm).length) {
+          destinationPickerProductArmed = true;
+        }
+      }
+    }
+
+    function openProductRecommendModal(destinationName, station) {
+      var products = getRecommendedProductsForDestination(destinationName);
+      if (!products.length) return;
+
+      if (!productModalOverlay) productModalOverlay = document.getElementById('product-modal-overlay');
+      if (!productModalOverlay) return;
+
+      productModalOverlay.setAttribute('data-current-destination', destinationName);
+
+      var titleEl = document.getElementById('product-modal-title');
+      var subEl = document.getElementById('product-modal-subtitle');
+      var hintEl = document.getElementById('product-modal-hint');
+      var listEl = document.getElementById('product-modal-list');
+
+      titleEl.textContent = destinationName + ' 추천 상품';
+      subEl.textContent = station
+        ? station.name + '에서 선택한 목적지와 함께 보면 좋은 상품이에요.'
+        : '선택한 목적지와 함께 보면 좋은 상품이에요.';
+      hintEl.textContent =
+        '「' +
+        destinationName +
+        '」 데모용 가상 상품입니다. 카드를 누르면 하나투어가 새 창에서 열립니다.';
+
+      listEl.innerHTML = products
+        .map(function(p) {
+          var href = buildHanatourDemoProductHref(destinationName, p.name);
+          var aria = '하나투어 사이트 열기: ' + p.name;
+          return (
+            '<a class="product-card" href="' +
+            escapeHtml(href) +
+            '" target="_blank" rel="noopener noreferrer" aria-label="' +
+            escapeHtml(aria) +
+            '">' +
+            '<img class="product-card__thumb" src="' +
+            escapeHtml(p.thumbnailUrl) +
+            '" width="72" height="72" alt="" loading="lazy" draggable="false" />' +
+            '<div class="product-card__body">' +
+            '<p class="product-card__name">' +
+            escapeHtml(p.name) +
+            '</p>' +
+            '<div class="product-card__row">' +
+            '<span class="product-card__discount">' +
+            p.discountPercent +
+            '% 할인</span>' +
+            '<span class="product-card__price">' +
+            formatKrw(p.price) +
+            '</span>' +
+            '</div></div></a>'
+          );
+        })
+        .join('');
+
+      productModalOverlay.hidden = false;
+      productModalOverlay.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(function() {
+        productModalOverlay.classList.add('is-open');
+      });
+    }
+
+    /** productList CSV: 마스터 상품명·POI 매칭 상품을 역 클릭 시 모달에 표시(지도 마커와 동일 범위). */
+    function openMasterCsvProductModal(ctx, station) {
+      if (typeof getMasterProductsNearStation !== 'function') return;
+      if (!productModalOverlay) productModalOverlay = document.getElementById('product-modal-overlay');
+      if (!productModalOverlay) return;
+      var rows = getMasterProductsNearStation(ctx.key, station);
+      var titleEl = document.getElementById('product-modal-title');
+      var subEl = document.getElementById('product-modal-subtitle');
+      var hintEl = document.getElementById('product-modal-hint');
+      var listEl = document.getElementById('product-modal-list');
+      var priceLine = function(p) {
+        return typeof formatMasterProductPrice === 'function'
+          ? formatMasterProductPrice(p)
+          : p.price != null
+            ? String(p.price)
+            : '가격문의';
+      };
+      var hrefFor = function(p) {
+        return typeof getMasterProductHanatourHref === 'function'
+          ? getMasterProductHanatourHref(p)
+          : 'https://www.hanatour.com/?searchKeyword=' + encodeURIComponent(p.productCode || p.productName);
+      };
+      productModalOverlay.setAttribute('data-modal-source', 'master-csv');
+      titleEl.textContent = station.name + ' · 주변 상품';
+      var rkm = typeof RADIUS_KM_CSV === 'number' ? RADIUS_KM_CSV : 1;
+      var wideRadius = rkm >= 1000;
+      subEl.textContent = wideRadius
+        ? 'CSV에 있는 해당 도시(메트로)의 상품을 모두 보여 드려요. POI를 못 찾은 상품은 도심 기본 좌표에 붙습니다.'
+        : 'CSV의 마스터 상품명으로 관광지(POI)를 인지한 뒤, 이 역에서 직선 거리 약 ' +
+          rkm +
+          'km 이내인 상품이에요.';
+      hintEl.textContent = rows.length
+        ? '총 ' + rows.length + '건 · 아래는 지도에 표시된 보라색 마커와 같은 목록입니다. 가까운 순이에요.'
+        : '이 도시에 표시할 CSV 상품이 없어요. 데이터를 확인하거나 다른 메트로 탭을 눌러 보세요.';
+      if (!rows.length) {
+        listEl.innerHTML =
+          '<p class="product-modal__hint" style="margin:0">표시할 상품이 없습니다. 노선의 다른 역을 눌러 보세요.</p>';
+      } else {
+        listEl.innerHTML = rows
+          .map(function(row) {
+            var p = row.product;
+            var d = row.distanceM;
+            var lm = p.landmark && p.landmark.name ? String(p.landmark.name) : 'POI';
+            var href = hrefFor(p);
+            var aria = '하나투어 사이트 열기: ' + p.productName;
+            var ch = p.productName ? p.productName.charAt(0) : '·';
+            return (
+              '<a class="product-card" href="' +
+              escapeHtml(href) +
+              '" target="_blank" rel="noopener noreferrer" aria-label="' +
+              escapeHtml(aria) +
+              '">' +
+              '<div class="product-card__thumb product-card__thumb--csv" aria-hidden="true">' +
+              escapeHtml(ch) +
+              '</div>' +
+              '<div class="product-card__body">' +
+              '<p class="product-card__name">' +
+              escapeHtml(p.productName) +
+              '</p>' +
+              '<div class="product-card__row">' +
+              '<span class="product-card__discount">' +
+              escapeHtml(lm) +
+              '</span>' +
+              '<span class="product-card__price">' +
+              escapeHtml(priceLine(p)) +
+              '</span>' +
+              '</div>' +
+              '<p class="product-modal__hint" style="margin:6px 0 0">역에서 약 ' +
+              d.toLocaleString('ko-KR') +
+              'm</p>' +
+              '</div></a>'
+            );
+          })
+          .join('');
+      }
+      productModalOverlay.hidden = false;
+      productModalOverlay.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(function() {
+        productModalOverlay.classList.add('is-open');
+      });
+    }
+
+    function initProductRecommendModalUi() {
+      var overlay = document.getElementById('product-modal-overlay');
+      var closeBtn = document.getElementById('product-modal-close');
+      var moreBtn = document.getElementById('product-modal-more');
+      var modalBox = overlay ? overlay.querySelector('.product-modal') : null;
+      if (!overlay || !closeBtn || !moreBtn || !modalBox) return;
+
+      function armCloseFromUser() {
+        closeProductRecommendModal();
+      }
+      closeBtn.addEventListener('click', armCloseFromUser);
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) armCloseFromUser();
+      });
+      modalBox.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      moreBtn.addEventListener('click', function() {
+        window.open('https://www.hanatour.com/', '_blank', 'noopener,noreferrer');
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
+          armCloseFromUser();
+        }
+      });
+    }
+
+    initProductRecommendModalUi();
+
+    function formatMeta(d) {
+      if (d.distance === 0) return '역 내';
+      return '<span class="dist">' + d.distance + 'm</span> · <span class="time">도보 ' + d.walkMin + '분</span>';
+    }
+
+    /** OpenStreetMap 검색으로 연결 (새 탭) */
+    function placeMapHref(placeName) {
+      return 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(placeName);
+    }
+
+    function getFilteredPlaces(station) {
+      var pl = (station && station.places) || [];
+      return pl.filter(function(p) { return p.walkMin <= MAX_WALK_MIN; });
+    }
+
+    /** 노선색을 유지한 채 회색을 섞어 비활성 궤도용 색 생성 (ratio: 0 원색, 1 회색) */
+    function mixHexWithGray(hex, ratio) {
+      var s = String(hex || '').replace(/^#/, '');
+      if (s.length !== 6) return hex || '#999999';
+      var r = parseInt(s.slice(0, 2), 16);
+      var g = parseInt(s.slice(2, 4), 16);
+      var b = parseInt(s.slice(4, 6), 16);
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+      var gr = 178;
+      var gg = 182;
+      var gb = 186;
+      var t = Math.min(1, Math.max(0, ratio));
+      function lerp(a, b) {
+        return Math.round(a * (1 - t) + b * t);
+      }
+      return (
+        '#' +
+        ('0' + lerp(r, gr).toString(16)).slice(-2) +
+        ('0' + lerp(g, gg).toString(16)).slice(-2) +
+        ('0' + lerp(b, gb).toString(16)).slice(-2)
+      );
+    }
+
+    /** 노선/역 색·클릭: walkableRealTourism(서울: 도보 POI, CSV도시: 인근에 CSV 상품) */
+
+    function stationOnMetroLine(ctx, station, lineKey) {
+      return station.tubeLineKey === lineKey;
+    }
+
+    function lineHasWalkableRealTourism(ctx, lineKey) {
+      return ctx.stations.some(function(st) {
+        return stationOnMetroLine(ctx, st, lineKey) && st.walkableRealTourism;
+      });
+    }
+
+    function makePopupContent(station, page, metroKey) {
+      page = page || 1;
+      metroKey = metroKey || 'london';
+      var nameSafe = escapeHtml(station.name);
+      var filteredPlaces = getFilteredPlaces(station);
+      if (filteredPlaces.length === 0) {
+        return (
+          '<div class="popup-inner" data-metro-key="' +
+          metroKey +
+          '" data-station-id="' +
+          station.id +
+          '" data-page="1">' +
+          '<div class="popup-station-name">' +
+          nameSafe +
+          '</div>' +
+          '<p class="popup-empty">표시할 관광지가 없습니다.</p></div>'
+        );
+      }
+      var start = (page - 1) * PER_PAGE;
+      var chunk = filteredPlaces.slice(start, start + PER_PAGE);
+      var totalPages = Math.ceil(filteredPlaces.length / PER_PAGE);
+
+      var listHtml = chunk.map(function(p, i) {
+        var placeIdx = start + i;
+        var href = placeMapHref(p.name);
+        return '<li><a href="' + href + '" target="_blank" rel="noopener noreferrer" class="place-link place-name" data-station-id="' + station.id + '" data-place-idx="' + placeIdx + '">' + p.name + '</a><span class="place-meta">' + formatMeta(p) + '</span></li>';
+      }).join('');
+
+      var paginationHtml = '';
+      if (totalPages > 1) {
+        paginationHtml = '<div class="popup-pagination">' +
+          '<button type="button" class="popup-prev" ' + (page <= 1 ? 'disabled' : '') + '>이전</button>' +
+          '<span class="page-num">' + page + ' / ' + totalPages + '</span>' +
+          '<button type="button" class="popup-next" ' + (page >= totalPages ? 'disabled' : '') + '>다음</button>' +
+          '</div>';
+      }
+
+      return (
+        '<div class="popup-inner" data-metro-key="' +
+        metroKey +
+        '" data-station-id="' +
+        station.id +
+        '" data-page="' +
+        page +
+        '">' +
+        '<div class="popup-station-name">' +
+        nameSafe +
+        '</div>' +
+        '<p class="popup-filter-caption">도보로 갈 수 있는 주변</p>' +
+        '<ul class="popup-list">' +
+        listHtml +
+        '</ul>' +
+        paginationHtml +
+        '</div>'
+      );
+    }
+
+    var metroByKey = {};
+    var activeMetroKey = 'london';
+    /** CSV 상품 필터·마스터 스크립트와 동기 (런던/뉴욕/도쿄/방콕만) */
+    var currentCity = 'london';
+    window.currentCity = currentCity;
+    var lastSubwayJsonByKey = {};
+    var METRO_TAB_CENTERS = {
+      london: { lat: 51.5074, lng: -0.1278, z: 12 },
+      newyork: { lat: 40.73, lng: -73.99, z: 12 },
+      tokyo: { lat: 35.685, lng: 139.75, z: 12 },
+      bangkok: { lat: 13.75, lng: 100.55, z: 12 }
+    };
+
+    function loadSubwayJsonForMetroKey(metroKey) {
+      if (typeof getSubwayJsonFileNameForMetroKey !== 'function') return;
+      var fn = getSubwayJsonFileNameForMetroKey(metroKey);
+      if (!fn) return;
+      return fetch(fn, { cache: 'no-store' })
+        .then(function(r) {
+          if (!r.ok) throw new Error('subway json ' + r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          lastSubwayJsonByKey[metroKey] = data;
+          window.__lastSubwayJson = { metroKey: metroKey, data: data, file: fn };
+          return data;
+        })
+        .catch(function() {
+          lastSubwayJsonByKey[metroKey] = null;
+          window.__lastSubwayJson = { metroKey: metroKey, data: null, file: fn };
+        });
+    }
+
+    /**
+     * 인라인 지도를 쓰는 도시(런던·뉴욕·도쿄·방콕)는 JSON이 없어도 메뉴·지도는 유지.
+     * 이후 JSON 전용 메트로를 추가할 때는 LEGACY에 없는 키는 파일이 없으면 탭을 숨김.
+     */
+    function applySubwayFilePresenceToTabs() {
+      var leg = window.LEGACY_INLINE_METRO_KEYS || {};
+      var order = [
+        { m: 'london', el: 'tab-london' },
+        { m: 'newyork', el: 'tab-newyork' },
+        { m: 'tokyo', el: 'tab-tokyo' },
+        { m: 'bangkok', el: 'tab-bangkok' }
+      ];
+      if (typeof getSubwayJsonFileNameForMetroKey !== 'function') return;
+      order.forEach(function(o) {
+        if (leg[o.m]) return;
+        var fn = getSubwayJsonFileNameForMetroKey(o.m);
+        if (!fn) return;
+        var btn = document.getElementById(o.el);
+        if (!btn) return;
+        fetch(fn, { method: 'GET', cache: 'no-store' })
+          .then(function(r) {
+            if (!r.ok) throw new Error('no');
+            return r.json();
+          })
+          .then(function() {
+            if (btn) btn.removeAttribute('hidden');
+          })
+          .catch(function() {
+            if (btn) {
+              btn.hidden = true;
+              btn.setAttribute('hidden', 'hidden');
+            }
+          });
+      });
+    }
+
+    function wmoWeatherCodeToKo(code) {
+      var c = code | 0;
+      if (c === 0) return { sym: '☀', text: '맑음' };
+      if (c === 1) return { sym: '🌤', text: '대체로 맑음' };
+      if (c === 2) return { sym: '⛅', text: '구름 조금' };
+      if (c === 3) return { sym: '☁', text: '흐림' };
+      if (c >= 45 && c <= 48) return { sym: '🌫', text: '안개' };
+      if (c >= 51 && c <= 57) return { sym: '🌦', text: '이슬비' };
+      if (c >= 61 && c <= 67) return { sym: '🌧', text: '비' };
+      if (c >= 71 && c <= 77) return { sym: '❄', text: '눈' };
+      if (c >= 80 && c <= 82) return { sym: '🌦', text: '소나기' };
+      if (c >= 85 && c <= 86) return { sym: '🌨', text: '눈 소나기' };
+      if (c >= 95) return { sym: '⛈', text: '뇌우' };
+      return { sym: '🌡', text: '날씨' };
+    }
+
+    function fetchOpenMeteoForMetro(metroKey) {
+      var box = document.getElementById('map-weather-' + metroKey);
+      var iconEl = document.getElementById('map-weather-' + metroKey + '-icon');
+      var tempEl = document.getElementById('map-weather-' + metroKey + '-temp');
+      var descEl = document.getElementById('map-weather-' + metroKey + '-desc');
+      var ctr = METRO_TAB_CENTERS[metroKey];
+      if (!box || !tempEl || !descEl || !ctr) return;
+      box.classList.add('map-weather--loading');
+      box.classList.remove('map-weather--err');
+      descEl.textContent = '불러오는 중…';
+      var url =
+        'https://api.open-meteo.com/v1/forecast?latitude=' +
+        encodeURIComponent(ctr.lat) +
+        '&longitude=' +
+        encodeURIComponent(ctr.lng) +
+        '&current_weather=true&timezone=auto';
+      return fetch(url, { cache: 'no-store' })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          var cw = data && data.current_weather;
+          if (!cw) throw new Error('no current_weather');
+          var t = cw.temperature != null ? Math.round(cw.temperature * 10) / 10 : null;
+          tempEl.textContent = t != null ? t + '°C' : '--';
+          var k = wmoWeatherCodeToKo(cw.weathercode);
+          descEl.textContent = k.sym + ' ' + k.text + ' (Open-Meteo)';
+          box.setAttribute('title', '출처: Open-Meteo · 키 없이 표시 (공개 API)');
+          if (iconEl) iconEl.style.display = 'none';
+          box.classList.remove('map-weather--loading', 'map-weather--err');
+        })
+        .catch(function() {
+          box.classList.add('map-weather--err');
+          box.classList.remove('map-weather--loading');
+          descEl.textContent = '날씨를 불러올 수 없습니다. 네트워크·차단 여부를 확인하세요.';
+          tempEl.textContent = '--';
+          if (iconEl) iconEl.style.display = 'none';
+        });
+    }
+
+    function fetchOpenWeatherForMetro(metroKey) {
+      var box = document.getElementById('map-weather-' + metroKey);
+      if (!box) return;
+      var iconEl = document.getElementById('map-weather-' + metroKey + '-icon');
+      var tempEl = document.getElementById('map-weather-' + metroKey + '-temp');
+      var descEl = document.getElementById('map-weather-' + metroKey + '-desc');
+      if (!tempEl || !descEl) return;
+      var apiKey = window.OPENWEATHERMAP_API_KEY;
+      var ctr = METRO_TAB_CENTERS[metroKey];
+      if (!ctr) return;
+      var keyTrim = apiKey && String(apiKey).trim();
+      if (!keyTrim) {
+        fetchOpenMeteoForMetro(metroKey);
+        return;
+      }
+      box.classList.add('map-weather--loading');
+      box.classList.remove('map-weather--err');
+      descEl.textContent = '불러오는 중…';
+      if (iconEl) iconEl.style.display = 'none';
+      var url =
+        'https://api.openweathermap.org/data/2.5/weather?lat=' +
+        encodeURIComponent(ctr.lat) +
+        '&lon=' +
+        encodeURIComponent(ctr.lng) +
+        '&appid=' +
+        encodeURIComponent(keyTrim) +
+        '&units=metric&lang=kr';
+      fetch(url, { cache: 'no-store' })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          applyOwmToWidget(metroKey, data);
+        })
+        .catch(function() {
+          fetchOpenMeteoForMetro(metroKey);
+        });
+    }
+
+    function applyOwmToWidget(metroKey, data) {
+      var box = document.getElementById('map-weather-' + metroKey);
+      var iconEl = document.getElementById('map-weather-' + metroKey + '-icon');
+      var tempEl = document.getElementById('map-weather-' + metroKey + '-temp');
+      var descEl = document.getElementById('map-weather-' + metroKey + '-desc');
+      if (!box || !tempEl || !descEl) return;
+      box.classList.remove('map-weather--loading', 'map-weather--err');
+      box.removeAttribute('title');
+      var t = data.main && data.main.temp != null ? Math.round(data.main.temp * 10) / 10 : null;
+      tempEl.textContent = t != null ? t + '°C' : '--';
+      var w0 = data.weather && data.weather[0];
+      descEl.textContent = w0 && w0.description ? w0.description : '';
+      if (w0 && w0.icon && iconEl) {
+        iconEl.src = 'https://openweathermap.org/img/wn/' + w0.icon + '@2x.png';
+        iconEl.alt = w0.description || '';
+        iconEl.style.display = '';
+      } else if (iconEl) {
+        iconEl.style.display = 'none';
+      }
+    }
+
+    function boundsFromPathList(paths) {
+      var b = null;
+      paths.forEach(function(path) {
+        path.forEach(function(ll) {
+          var p = L.latLng(ll[0], ll[1]);
+          b = b ? b.extend(p) : L.latLngBounds(p, p);
+        });
+      });
+      return b;
+    }
+
+    function fitMapToAllNetworkBounds(ctx) {
+      if (ctx.key === 'london') {
+        var ubL = boundsFromPathList(londonLineDefs.map(function(d) { return d.coords; }));
+        ctx.map.fitBounds(ubL, { padding: [20, 20], maxZoom: 14 });
+      } else if (ctx.key === 'newyork') {
+        var ubN = boundsFromPathList(nycLineDefs.map(function(d) { return d.coords; }));
+        ctx.map.fitBounds(ubN, { padding: [20, 20], maxZoom: 13 });
+      } else if (ctx.key === 'tokyo') {
+        var ubT = boundsFromPathList(tokyoLineDefs.map(function(d) { return d.coords; }));
+        ctx.map.fitBounds(ubT, { padding: [20, 20], maxZoom: 14 });
+      } else if (ctx.key === 'bangkok') {
+        var ubB = boundsFromPathList(bangkokLineDefs.map(function(d) { return d.coords; }));
+        ctx.map.fitBounds(ubB, { padding: [20, 20], maxZoom: 12 });
+      }
+    }
+
+    function fitMapToSelectedLineBounds(ctx, lineKey) {
+      if (lineKey === null || lineKey === undefined) return;
+      var path = null;
+      if (ctx.key === 'london') {
+        var ld = londonLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
+        path = ld && ld.coords;
+      } else if (ctx.key === 'newyork') {
+        var nd = nycLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
+        path = nd && nd.coords;
+      } else if (ctx.key === 'tokyo') {
+        var td = tokyoLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
+        path = td && td.coords;
+      } else if (ctx.key === 'bangkok') {
+        var bd = bangkokLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
+        path = bd && bd.coords;
+      }
+      if (!path || path.length < 2) return;
+      var b = boundsFromPathList([path]);
+      ctx.map.fitBounds(b, { padding: [52, 52], maxZoom: 16 });
+    }
+
+    function updateLineLegendSelection(metroKey, activeKey) {
+      var panelId =
+        metroKey === 'london'
+          ? 'map-panel-london'
+          : metroKey === 'newyork'
+            ? 'map-panel-newyork'
+            : metroKey === 'tokyo'
+              ? 'map-panel-tokyo'
+              : metroKey === 'bangkok'
+                ? 'map-panel-bangkok'
+                : 'map-panel-london';
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      panel.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+        var k = row.getAttribute('data-tube-line');
+        row.classList.toggle('is-active', activeKey != null && k === activeKey);
+      });
+    }
+
+    function refreshLineStationMarkers(ctx, lineKey) {
+      ctx.selectedLineKey = lineKey;
+      ctx.stationLayer.clearLayers();
+      if (ctx.stationPoiLayer) ctx.stationPoiLayer.clearLayers();
+      updateLineLegendSelection(ctx.key, lineKey);
+      if (lineKey === null || lineKey === undefined) {
+        fitMapToAllNetworkBounds(ctx);
+        return;
+      }
+      var isCsvMetro = ['london', 'newyork', 'tokyo', 'bangkok'].indexOf(ctx.key) >= 0;
+      ctx.stations.forEach(function(station) {
+        var match = station.tubeLineKey === lineKey;
+        if (!match) return;
+        var iconStation = Object.assign({}, station, { tubeLineKey: lineKey });
+        var hasRealTour = !!station.walkableRealTourism;
+        var icon = stationLabelDivIcon(iconStation, ctx.key, undefined, !hasRealTour);
+        var marker = L.marker([station.lat, station.lng], {
+          icon: icon,
+          interactive: hasRealTour
+        }).addTo(ctx.stationLayer);
+        if (hasRealTour) {
+          if (isCsvMetro && typeof onStationClickShowMasterCsv === 'function') {
+            marker.on('click', function(ev) {
+              L.DomEvent.stopPropagation(ev);
+              onStationClickShowMasterCsv(ctx, station);
+              if (typeof openMasterCsvProductModal === 'function') {
+                openMasterCsvProductModal(ctx, station);
+              }
+            });
+          } else {
+            marker.bindPopup(makePopupContent(station, 1, ctx.key), {
+              maxWidth: 320,
+              className: 'station-popup station-popup--' + ctx.key
+            });
+          }
+        }
+      });
+      requestAnimationFrame(function() {
+        fitMapToSelectedLineBounds(ctx, lineKey);
+      });
+    }
+
+    function toggleLineStationView(ctx, lineKey) {
+      if (ctx.selectedLineKey === lineKey) refreshLineStationMarkers(ctx, null);
+      else refreshLineStationMarkers(ctx, lineKey);
+    }
+
+    function installSeoulLines(ctx) {
+      var grayMix = 0.52;
+      seoulLineDefs.forEach(function(ld) {
+        var lineOn = lineHasWalkableRealTourism(ctx, ld.id);
+        var outlineCol = lineOn ? ld.outline : mixHexWithGray(ld.outline, grayMix);
+        var trackCol = lineOn ? ld.color : mixHexWithGray(ld.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(ld.path, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(ld.path, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(ld.path, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, ld.id);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
+    function installLondonLines(ctx) {
+      var grayMix = 0.52;
+      londonLineDefs.forEach(function(def) {
+        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
+        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
+        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(def.coords, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(def.coords, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(def.coords, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, def.lineId);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
+    function installNYCLines(ctx) {
+      var grayMix = 0.52;
+      nycLineDefs.forEach(function(def) {
+        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
+        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
+        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(def.coords, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(def.coords, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(def.coords, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, def.lineId);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
+    function installTokyoLines(ctx) {
+      var grayMix = 0.52;
+      tokyoLineDefs.forEach(function(def) {
+        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
+        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
+        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(def.coords, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(def.coords, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(def.coords, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, def.lineId);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
+    function installBangkokLines(ctx) {
+      var grayMix = 0.52;
+      bangkokLineDefs.forEach(function(def) {
+        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
+        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
+        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(def.coords, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(def.coords, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(def.coords, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, def.lineId);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
+    function createMetroContext(key, elId, stationsData, initialCenter, initialZoom, lineInstaller) {
+      var ctx = {
+        key: key,
+        map: L.map(elId, { scrollWheelZoom: true }).setView(initialCenter, initialZoom),
+        stations: stationsData,
+        selectedLineKey: null,
+        currentRouteGroup: null,
+        currentPlaceMarker: null,
+        lineTracksLayer: L.layerGroup(),
+        hitLayer: L.layerGroup(),
+        stationLayer: L.layerGroup(),
+        stationPoiLayer: L.layerGroup()
+      };
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
+          '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(ctx.map);
+      ctx.lineTracksLayer.addTo(ctx.map);
+      ctx.hitLayer.addTo(ctx.map);
+      ctx.stationLayer.addTo(ctx.map);
+      ctx.stationPoiLayer.addTo(ctx.map);
+      if (typeof lineInstaller === 'function') lineInstaller(ctx);
+      ctx.clearWalkingRoute = function() {
+        if (ctx.currentRouteGroup && ctx.map.hasLayer(ctx.currentRouteGroup)) {
+          ctx.map.removeLayer(ctx.currentRouteGroup);
+        }
+        if (ctx.currentRouteGroup) {
+          ctx.currentRouteGroup.clearLayers();
+          ctx.currentRouteGroup = null;
+        }
+      };
+      ctx.clearDestinationAndRoute = function() {
+        closeProductRecommendModal({ skipArmPicker: true });
+        ctx.clearWalkingRoute();
+        if (ctx.currentPlaceMarker) {
+          ctx.map.removeLayer(ctx.currentPlaceMarker);
+          ctx.currentPlaceMarker = null;
+        }
+        if (lastDestinationContext && lastDestinationContext.metroKey === ctx.key) {
+          lastDestinationContext = null;
+          destinationPickerProductArmed = false;
+        }
+      };
+      metroByKey[key] = ctx;
+      return ctx;
+    }
+
+    createMetroContext('london', 'map-london', stationsLondon, [51.507, -0.12], 13, installLondonLines);
+    createMetroContext('newyork', 'map-newyork', stationsNYC, [40.74, -73.99], 12, installNYCLines);
+    createMetroContext('tokyo', 'map-tokyo', stationsTokyo, [35.685, 139.75], 12, installTokyoLines);
+    createMetroContext('bangkok', 'map-bangkok', stationsBangkok, [13.75, 100.55], 12, installBangkokLines);
+
+    function refreshLineLegendTourismState() {
+      ['london', 'newyork', 'tokyo', 'bangkok'].forEach(function(mkey) {
+        var ctx = metroByKey[mkey];
+        if (!ctx) return;
+        var panelId =
+          mkey === 'london'
+            ? 'map-panel-london'
+            : mkey === 'newyork'
+              ? 'map-panel-newyork'
+              : mkey === 'tokyo'
+                ? 'map-panel-tokyo'
+                : mkey === 'bangkok'
+                  ? 'map-panel-bangkok'
+                  : 'map-panel-london';
+        var panel = document.getElementById(panelId);
+        if (!panel) return;
+        panel.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+          var lid = row.getAttribute('data-tube-line');
+          var on = lineHasWalkableRealTourism(ctx, lid);
+          row.classList.toggle('line-legend__row--inactive-line', !on);
+          row.setAttribute('aria-disabled', on ? 'false' : 'true');
+        });
+      });
+    }
+
+    function wireLineLegendClicks() {
+      var pLon = document.getElementById('map-panel-london');
+      if (pLon) {
+        pLon.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+          row.addEventListener('click', function() {
+            var lid = row.getAttribute('data-tube-line');
+            toggleLineStationView(metroByKey.london, lid);
+          });
+          row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              row.click();
+            }
+          });
+        });
+      }
+      var pNyc = document.getElementById('map-panel-newyork');
+      if (pNyc) {
+        pNyc.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+          row.addEventListener('click', function() {
+            var lid = row.getAttribute('data-tube-line');
+            toggleLineStationView(metroByKey.newyork, lid);
+          });
+          row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              row.click();
+            }
+          });
+        });
+      }
+      var pTokyo = document.getElementById('map-panel-tokyo');
+      if (pTokyo) {
+        pTokyo.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+          row.addEventListener('click', function() {
+            var lid = row.getAttribute('data-tube-line');
+            toggleLineStationView(metroByKey.tokyo, lid);
+          });
+          row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              row.click();
+            }
+          });
+        });
+      }
+      var pBangkok = document.getElementById('map-panel-bangkok');
+      if (pBangkok) {
+        pBangkok.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
+          row.addEventListener('click', function() {
+            var lid = row.getAttribute('data-tube-line');
+            toggleLineStationView(metroByKey.bangkok, lid);
+          });
+          row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              row.click();
+            }
+          });
+        });
+      }
+    }
+    wireLineLegendClicks();
+
+    function switchMetroTab(key) {
+      if (!metroByKey[key] || key === activeMetroKey) return;
+      loadSubwayJsonForMetroKey(key);
+      closeProductRecommendModal({ skipArmPicker: true });
+      lastDestinationContext = null;
+      destinationPickerProductArmed = false;
+      activeMetroKey = key;
+      currentCity = key;
+      window.currentCity = key;
+      if (metroByKey.london) refreshLineStationMarkers(metroByKey.london, null);
+      if (metroByKey.newyork) refreshLineStationMarkers(metroByKey.newyork, null);
+      if (metroByKey.tokyo) refreshLineStationMarkers(metroByKey.tokyo, null);
+      if (metroByKey.bangkok) refreshLineStationMarkers(metroByKey.bangkok, null);
+      var ctr = METRO_TAB_CENTERS[key];
+      if (ctr && metroByKey[key] && metroByKey[key].map) {
+        try {
+          metroByKey[key].map.setView([ctr.lat, ctr.lng], ctr.z);
+        } catch (e) {}
+      }
+      document.querySelectorAll('.map-tab-panel').forEach(function(p) {
+        p.classList.toggle('is-active', p.id === 'map-panel-' + key);
+      });
+      document.querySelectorAll('.map-gnb__tab').forEach(function(btn) {
+        var on = btn.getAttribute('data-metro-tab') === key;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      requestAnimationFrame(function() {
+        Object.keys(metroByKey).forEach(function(k) {
+          metroByKey[k].map.invalidateSize();
+        });
+        setTimeout(function() {
+          Object.keys(metroByKey).forEach(function(k) {
+            metroByKey[k].map.invalidateSize();
+          });
+        }, 200);
+      });
+      fetchOpenWeatherForMetro(key);
+    }
+
+    document.querySelectorAll('[data-metro-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        switchMetroTab(btn.getAttribute('data-metro-tab'));
+      });
+    });
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    window.escapeHtml = escapeHtml;
+
+    function stationLabelDivIcon(station, metroKey, displayLineNum, inactive) {
+      metroKey = metroKey || 'london';
+      var lineClass;
+      var tk = station.tubeLineKey || 'central';
+      var cssKey = tk === 'metropolitan' ? 'metropolitan' : tk;
+      lineClass = 'tube-' + cssKey;
+      var w = Math.min(180, Math.max(88, 22 + station.name.length * 14));
+      var h = 32;
+      var html =
+        '<div class="station-marker-label ' +
+        lineClass +
+        (inactive ? ' station-marker-label--inactive' : '') +
+        '" style="width:' +
+        w +
+        'px"><span class="station-marker-label__bar" aria-hidden="true"></span>' +
+        '<span class="station-marker-label__text">' +
+        escapeHtml(station.name) +
+        '</span></div>';
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [w, h],
+        iconAnchor: [Math.round(w / 2), h]
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('.popup-prev, .popup-next');
+      if (!btn || btn.disabled) return;
+      var popupContent = e.target.closest('.leaflet-popup-content');
+      if (!popupContent) return;
+      var wrapper = popupContent.querySelector('.popup-inner');
+      if (!wrapper) return;
+      var metroKey = wrapper.getAttribute('data-metro-key') || 'london';
+      var ctxMap = metroByKey[metroKey];
+      if (!ctxMap) return;
+      var stationId = wrapper.getAttribute('data-station-id');
+      var page = parseInt(wrapper.getAttribute('data-page'), 10) || 1;
+      var station = ctxMap.stations.filter(function(s) { return s.id === stationId; })[0];
+      if (!station) return;
+      var filteredPlaces = getFilteredPlaces(station);
+      var totalPages = Math.ceil(filteredPlaces.length / PER_PAGE);
+      if (btn.classList.contains('popup-next')) {
+        page = page + 1;
+        if (page > totalPages) return;
+      } else if (btn.classList.contains('popup-prev')) {
+        page = page - 1;
+        if (page < 1) return;
+      }
+      var popup = ctxMap.map.getPopup();
+      if (popup && popup.isOpen()) popup.setContent(makePopupContent(station, page, metroKey));
+    });
+
+    /** 목적지별 랜드마크 캐릭터 SVG (viewBox 48×48) */
+    var LM = {
+      def:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><circle cx="24" cy="22" r="15" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/><circle cx="19" cy="19" r="2" fill="#1e293b"/><circle cx="29" cy="19" r="2" fill="#1e293b"/><path d="M17 26q7 5 14 0" fill="none" stroke="#1e293b" stroke-width="1.5" stroke-linecap="round"/><path d="M24 34v10M18 42h12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/></svg>',
+      plane:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/><path d="M8 28 L22 22 26 12 30 22 42 26 30 30 26 40 22 30 8 34 12 28z" fill="#38bdf8" stroke="#0369a1" stroke-width="1.2" stroke-linejoin="round"/><path d="M22 22 L42 26 L30 30z" fill="#0ea5e9" opacity="0.95"/></svg>',
+      gwangjang:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><ellipse cx="24" cy="34" rx="18" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/><ellipse cx="17" cy="28" rx="9" ry="5.5" fill="#b91c1c"/><ellipse cx="15" cy="27" rx="3.5" ry="2.2" fill="#fecaca" opacity=".7"/><circle cx="31" cy="27" r="9" fill="#ea580c" stroke="#9a3412" stroke-width="1"/><circle cx="31" cy="27" r="5.5" fill="#fde047"/><circle cx="27.5" cy="24.5" r="1.4" fill="#1f2937"/><circle cx="34.5" cy="24.5" r="1.4" fill="#1f2937"/><path d="M26 28.5q5 2.5 10-0.5" fill="none" stroke="#1f2937" stroke-width="1" stroke-linecap="round"/></svg>',
+      fish:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><ellipse cx="22" cy="24" rx="14" ry="8" fill="#38bdf8" stroke="#0284c7"/><path d="M36 24l8-5v10z" fill="#0284c7"/><circle cx="16" cy="22" r="2" fill="#fff"/><path d="M12 26q2 4 6 4" fill="none" stroke="#0369a1" stroke-width="1.5"/></svg>',
+      tower:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M24 6 L30 40H18Z" fill="#e5e7eb" stroke="#64748b" stroke-width="1.5"/><path d="M21 14h6v4h-6z" fill="#f87171"/><path d="M20 22h8v3h-8z" fill="#94a3b8"/><circle cx="24" cy="10" r="2" fill="#ef4444"/></svg>',
+      ball:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><circle cx="24" cy="24" r="14" fill="#fff" stroke="#ca8a04" stroke-width="2"/><path d="M14 18q10 12 20 0M12 28h24M18 12q6 24 12 24" stroke="#ca8a04" fill="none" stroke-width="1.2"/></svg>',
+      lake:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M4 30 Q12 24 24 30 T44 28v8H4z" fill="#7dd3fc"/><ellipse cx="30" cy="22" rx="4" ry="3" fill="#fff" opacity=".8"/><circle cx="30" cy="21" r="1" fill="#0c4a6e"/></svg>',
+      ride:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M8 32 Q24 8 40 32" fill="none" stroke="#ec4899" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="34" r="5" fill="#f472b6"/><circle cx="24" cy="20" r="4" fill="#fce7f3" stroke="#db2777"/></svg>',
+      temple:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M8 28 L24 10 40 28z" fill="#b45309" stroke="#78350f"/><rect x="12" y="28" width="24" height="12" fill="#d97706" rx="1"/><path d="M16 32h16M18 36h12" stroke="#78350f" stroke-width="1"/></svg>',
+      war:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><rect x="20" y="8" width="8" height="28" fill="#64748b" rx="1"/><path d="M12 14h24M12 22h24" stroke="#475569" stroke-width="2"/><circle cx="24" cy="38" r="4" fill="#78716c"/></svg>',
+      global:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><circle cx="24" cy="24" r="14" fill="#86efac" stroke="#16a34a" stroke-width="2"/><path d="M10 24h28M24 10a18 18 0 0014 28M24 10a18 18 0 00-14 28" fill="none" stroke="#15803d" stroke-width="1"/></svg>',
+      stream:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M4 28 Q16 22 28 28 T52 26" fill="none" stroke="#0ea5e9" stroke-width="4" stroke-linecap="round"/><path d="M6 34 Q18 30 30 34 T50 32" fill="none" stroke="#38bdf8" stroke-width="3"/></svg>',
+      hanok:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M6 30 Q24 8 42 30" fill="#92400e" stroke="#78350f" stroke-width="1"/><rect x="10" y="30" width="28" height="10" fill="#ca8a04" rx="1"/><rect x="20" y="34" width="8" height="6" fill="#451a03" rx="1"/></svg>',
+      ddp:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M6 32 Q12 12 24 18 T42 32" fill="none" stroke="#a855f7" stroke-width="3"/><path d="M8 32 Q20 8 32 20 T44 32" fill="none" stroke="#7c3aed" stroke-width="2"/></svg>',
+      gate:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M12 40V16 Q24 6 36 16V40" fill="none" stroke="#57534e" stroke-width="3"/><rect x="20" y="26" width="8" height="14" fill="#78716c" rx="1"/></svg>',
+      market:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M8 20 L12 10 20 14 24 8 28 14 36 10 40 20z" fill="#f97316" stroke="#c2410c"/><rect x="10" y="20" width="28" height="16" fill="#fed7aa" rx="1"/><circle cx="18" cy="28" r="3" fill="#22c55e"/><circle cx="30" cy="28" r="3" fill="#ef4444"/></svg>',
+      park:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M24 8 L28 22h8L26 30l2 12-8-8-8 8 2-12-10-8h8z" fill="#22c55e" stroke="#15803d" stroke-width="1"/></svg>',
+      street:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M8 36 L24 12 40 36" fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="4 3"/><circle cx="24" cy="14" r="4" fill="#fbbf24"/></svg>',
+      food:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><ellipse cx="24" cy="30" rx="14" ry="7" fill="#fff" stroke="#78716c"/><path d="M16 22 Q24 10 32 22" fill="none" stroke="#94a3b8" stroke-width="2"/><circle cx="20" cy="18" r="2" fill="#cbd5e1"/><circle cx="28" cy="18" r="2" fill="#cbd5e1"/></svg>',
+      shop:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M12 14 L14 8h20l2 6" fill="#c084fc" stroke="#7e22ce"/><rect x="10" y="14" width="28" height="20" fill="#faf5ff" stroke="#9333ea" rx="1"/><path d="M16 22h16" stroke="#a855f7"/></svg>',
+      coex:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><rect x="8" y="14" width="32" height="22" fill="#bae6fd" stroke="#0284c7" rx="1"/><path d="M12 18h24M12 24h24M12 30h10" stroke="#0369a1" stroke-width="1.5"/></svg>',
+      cube:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M24 8l14 8v16l-14 8-14-8V16z" fill="#93c5fd" stroke="#2563eb"/><path d="M24 8v16l14-8M24 24l-14-8" fill="none" stroke="#1d4ed8" stroke-width="1.2"/></svg>',
+      chip:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><rect x="10" y="14" width="28" height="20" fill="#334155" rx="2"/><path d="M14 18h20M14 24h12M14 30h20" stroke="#94a3b8" stroke-width="1.5"/><rect x="18" y="20" width="12" height="8" fill="#22d3ee" rx="1"/></svg>',
+      art:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M8 32 L18 12l6 8 8-14 8 26z" fill="#f472b6" stroke="#db2777"/><circle cx="14" cy="14" r="4" fill="#facc15"/></svg>',
+      night:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><circle cx="28" cy="16" r="8" fill="#312e81"/><path d="M30 8a10 10 0 1010 10 8 8 0 01-10-10z" fill="#fde047"/><path d="M12 36h24" stroke="#a78bfa" stroke-width="3" stroke-linecap="round"/></svg>',
+      rocket:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M24 6 L28 28l-4 12-4-12z" fill="#f97316" stroke="#c2410c"/><path d="M18 28 L10 36M30 28l8 8" stroke="#ea580c" stroke-width="2"/></svg>',
+      palace:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><path d="M4 26 L24 8 44 26" fill="#dc2626" stroke="#991b1b"/><rect x="8" y="26" width="32" height="14" fill="#7f1d1d" rx="1"/><rect x="18" y="30" width="12" height="10" fill="#451a03" rx="1"/></svg>',
+      deoksu:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><rect x="10" y="16" width="28" height="22" fill="#e2e8f0" stroke="#64748b"/><path d="M8 16h32M12 10h24v6H12z" fill="#94a3b8"/><rect x="20" y="26" width="8" height="12" fill="#475569"/></svg>',
+      plaza:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><rect x="8" y="20" width="32" height="16" fill="#e5e7eb" stroke="#64748b"/><path d="M12 20V12h24v8" fill="#fbbf24"/><path d="M24 8v6" stroke="#ca8a04" stroke-width="2"/></svg>',
+      noodle:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="44" height="44"><ellipse cx="24" cy="30" rx="14" ry="7" fill="#fef3c7" stroke="#d97706"/><path d="M14 18c4 8 8 8 12 0s8 8 12 0" fill="none" stroke="#f59e0b" stroke-width="2"/><path d="M18 12l4 4M26 10l2 6" stroke="#78716c" stroke-width="1.5"/></svg>'
+    };
+
+    var LANDMARK_EXACT = {
+      '광장시장': LM.gwangjang,
+      '경복궁': LM.palace,
+      '덕수궁': LM.deoksu,
+      '남산서울타워': LM.tower,
+      '롯데월드타워': LM.tower,
+      '롯데월드': LM.ride,
+      '잠실야구장': LM.ball,
+      '석촌호수': LM.lake,
+      '코엑스 아쿠아리움': LM.fish,
+      '동대문시장': LM.market,
+      '청량리시장': LM.market
+    };
+
+    function getLandmarkFigureSvg(placeName) {
+      var compact = placeName.replace(/\s/g, '');
+      if (LANDMARK_EXACT[placeName]) return LANDMARK_EXACT[placeName];
+      if (LANDMARK_EXACT[compact]) return LANDMARK_EXACT[compact];
+      if (/아쿠아리움|아쿠아/.test(placeName)) return LM.fish;
+      if (/타워$/.test(placeName)) return LM.tower;
+      if (/야구/.test(placeName)) return LM.ball;
+      if (/호수/.test(placeName)) return LM.lake;
+      if (placeName.indexOf('롯데월드') === 0 && placeName.indexOf('타워') < 0) return LM.ride;
+      if (/봉은사|선정릉|선릉역 유적/.test(placeName)) return LM.temple;
+      if (/전쟁기념관/.test(placeName)) return LM.war;
+      if (/이태원/.test(placeName)) return LM.global;
+      if (/청계천/.test(placeName)) return LM.stream;
+      if (/인사동|종로 거리/.test(placeName)) return LM.hanok;
+      if (/디자인플라자|DDP/.test(placeName)) return LM.ddp;
+      if (/흥인지문/.test(placeName)) return LM.gate;
+      if (/시장/.test(placeName)) return LM.market;
+      if (/공원/.test(placeName)) return LM.park;
+      if (/거리|골목/.test(placeName)) return LM.street;
+      if (/카페|맛집/.test(placeName)) return LM.food;
+      if (/쇼핑|상가|몰/.test(placeName)) return LM.shop;
+      if (/코엑스/.test(placeName)) return LM.coex;
+      if (/디큐브/.test(placeName)) return LM.cube;
+      if (/디지털|단지/.test(placeName)) return LM.chip;
+      if (/벽화/.test(placeName)) return LM.art;
+      if (/클럽|플레이스그라운드/.test(placeName)) return LM.night;
+      if (/창업허브/.test(placeName)) return LM.rocket;
+      if (/광장$/.test(placeName)) return LM.plaza;
+      if (/명동/.test(placeName)) return LM.shop;
+      if (/용산공원/.test(placeName)) return LM.park;
+      if (/회기/.test(placeName)) return LM.noodle;
+      if (/도산공원|가로수길/.test(placeName)) return LM.park;
+      if (/강남대로/.test(placeName)) return LM.street;
+      if (/역삼/.test(placeName)) return LM.food;
+      if (/논현동/.test(placeName)) return LM.food;
+      if (/강남역 지하상가/.test(placeName)) return LM.shop;
+      if (/Tower Bridge|Tower of London/.test(placeName)) return LM.gate;
+      if (/London Eye|Hyde Park|Regent Canal|St James/.test(placeName)) return LM.lake;
+      if (/Big Ben|The Shard|Sky Garden/.test(placeName)) return LM.tower;
+      if (/British Museum|British Library/.test(placeName)) return LM.coex;
+      if (/Borough Market|Leadenhall|Soho/.test(placeName)) return LM.market;
+      if (/Little Venice/.test(placeName)) return LM.stream;
+      if (/Times Square|Broadway Theaters/.test(placeName)) return LM.night;
+      if (/Bryant Park|Central Park|Union Square Greenmarket/.test(placeName)) return LM.park;
+      if (/Grand Central|Chrysler|NY Public Library|Lincoln Center|American Museum/.test(placeName))
+        return LM.coex;
+      if (/9\/11|Observatory|Oculus|Flatiron|Strand/.test(placeName)) return LM.tower;
+      if (/Brooklyn Bridge|DUMBO|Promenade/.test(placeName)) return LM.gate;
+      if (/인근 산책|도보권 카페|근처 광장/.test(placeName)) return LM.street;
+      if (/neighbourhood walk|local walk|— local walk/.test(placeName)) return LM.street;
+      if (/Square \/ gardens|Plaza \/ park/.test(placeName)) return LM.park;
+      if (/Cafés & stores|cafés & shops/.test(placeName)) return LM.food;
+      return LM.def;
+    }
+
+    /** 보행자 실루엣 (Material directions_walk 계열, 기본 방향: 동쪽 — 진행 방향으로 회전) */
+    function bearingDeg(lat1, lng1, lat2, lng2) {
+      var φ1 = (lat1 * Math.PI) / 180;
+      var φ2 = (lat2 * Math.PI) / 180;
+      var dλ = ((lng2 - lng1) * Math.PI) / 180;
+      var y = Math.sin(dλ) * Math.cos(φ2);
+      var x =
+        Math.cos(φ1) * Math.sin(φ2) -
+        Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ);
+      return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    }
+
+    function walkAlongIcon(bearingDegVal) {
+      var rot = bearingDegVal - 90;
+      var svgSmall =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+        '<path fill="currentColor" d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .9-3c1.6 1.1 3.2 2 5.3 2v-2c-1.7 0-3.1-1-4.3-2.1L10 5.5C9.4 4.9 8.5 4.7 7.7 5.2L4 7.5V11h2V8.4l1.7-.9"/>' +
+        '</svg>';
+      var html =
+        '<div class="route-walker"><div class="route-walker__rotate" style="transform:rotate(' +
+        rot +
+        'deg)">' +
+        svgSmall +
+        '</div></div>';
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+    }
+
+    function destinationMarkerDivIcon(place) {
+      var w = Math.min(220, Math.max(120, 28 + place.name.length * 14));
+      var fig = 52;
+      var gap = 6;
+      var nameBlock = place.name.length > 12 ? 52 : 44;
+      var totalH = fig + gap + nameBlock;
+      var html =
+        '<div class="destination-marker" style="width:' +
+        w +
+        'px" data-destination-marker="1">' +
+        '<div class="destination-marker__figure">' +
+        getLandmarkFigureSvg(place.name) +
+        '</div><div class="destination-marker__name">' +
+        escapeHtml(place.name) +
+        '</div></div>';
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [w, totalH],
+        iconAnchor: [Math.round(w / 2), totalH]
+      });
+    }
+
+    function addWalkersAlongRoute(coords, featureGroup) {
+      if (!coords || coords.length < 2) return;
+      var n = coords.length;
+      function placeWalkerAt(lat, lng, br) {
+        featureGroup.addLayer(
+          L.marker(L.latLng(lat, lng), {
+            icon: walkAlongIcon(br),
+            zIndexOffset: 150,
+            interactive: false
+          })
+        );
+      }
+      if (n === 2) {
+        var br0 = bearingDeg(coords[0][0], coords[0][1], coords[1][0], coords[1][1]);
+        var mLat = (coords[0][0] + coords[1][0]) / 2;
+        var mLng = (coords[0][1] + coords[1][1]) / 2;
+        placeWalkerAt(mLat, mLng, br0);
+        return;
+      }
+      var idxs = [];
+      if (n <= 5) {
+        idxs.push(Math.max(1, Math.min(n - 2, Math.floor(n / 2))));
+      } else {
+        [0.2, 0.45, 0.72].forEach(function(t) {
+          var i = Math.max(1, Math.min(n - 2, Math.floor(n * t)));
+          if (idxs.indexOf(i) === -1) idxs.push(i);
+        });
+      }
+      idxs.sort(function(a, b) {
+        return a - b;
+      });
+      idxs.forEach(function(i) {
+        var prev = coords[i - 1];
+        var next = coords[i + 1];
+        var br = bearingDeg(prev[0], prev[1], next[0], next[1]);
+        placeWalkerAt(coords[i][0], coords[i][1], br);
+      });
+    }
+
+    function buildRouteGroup(coords) {
+      var g = L.featureGroup();
+      var pl = L.polyline(coords, {
+        color: '#dc2626',
+        weight: 6,
+        opacity: 0.92,
+        dashArray: '8 10',
+        interactive: false
+      });
+      g.addLayer(pl);
+      addWalkersAlongRoute(coords, g);
+      return g;
+    }
+
+    /** OSRM JSON → [[lat,lng], ...] (도로 따라 연속 좌표) */
+    function parseOsrmRouteCoords(data) {
+      if (!data || data.code !== 'Ok' || !data.routes || !data.routes[0]) return null;
+      var g = data.routes[0].geometry;
+      if (!g || !g.coordinates || g.coordinates.length < 2) return null;
+      return g.coordinates.map(function(c) {
+        return [c[1], c[0]];
+      });
+    }
+
+    /** BRouter GeoJSON → [[lat,lng], ...] (OSM 도보·등산 프로필, 도로망 기준) */
+    function parseBRouterRouteCoords(data) {
+      if (!data || data.type !== 'FeatureCollection' || !data.features || !data.features[0]) return null;
+      var geom = data.features[0].geometry;
+      if (!geom || geom.type !== 'LineString' || !geom.coordinates || geom.coordinates.length < 2) return null;
+      return geom.coordinates.map(function(c) {
+        return [c[1], c[0]];
+      });
+    }
+
+    function fetchJson(url) {
+      return fetch(url).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      });
+    }
+
+    function fetchOsrmFootPath(baseUrl, lat1, lng1, lat2, lng2) {
+      var q = '?overview=full&geometries=geojson';
+      var url = baseUrl + lng1 + ',' + lat1 + ';' + lng2 + ',' + lat2 + q;
+      return fetchJson(url).then(function(data) {
+        var coords = parseOsrmRouteCoords(data);
+        if (!coords) throw new Error('OSRM no route');
+        return coords;
+      });
+    }
+
+    function fetchBRouterTrekking(lat1, lng1, lat2, lng2) {
+      var lonlats = lng1 + ',' + lat1 + '|' + lng2 + ',' + lat2;
+      var url =
+        'https://brouter.de/brouter?lonlats=' +
+        lonlats +
+        '&profile=trekking&alternativeidx=0&format=geojson';
+      return fetchJson(url).then(function(data) {
+        var coords = parseBRouterRouteCoords(data);
+        if (!coords) throw new Error('BRouter no route');
+        return coords;
+      });
+    }
+
+    /**
+     * 도보 이동 가능한 도로망(OSM) 기준 경로.
+     * 1) FOSSGIS OSRM foot → 2) project-osrm foot → 3) BRouter trekking → 실패 시 직선
+     */
+    function fetchPedestrianRoadRoute(lat1, lng1, lat2, lng2) {
+      var straight = [[lat1, lng1], [lat2, lng2]];
+      return fetchOsrmFootPath(
+        'https://routing.openstreetmap.de/routed-foot/route/v1/foot/',
+        lat1,
+        lng1,
+        lat2,
+        lng2
+      )
+        .catch(function() {
+          return fetchOsrmFootPath(
+            'https://router.project-osrm.org/route/v1/foot/',
+            lat1,
+            lng1,
+            lat2,
+            lng2
+          );
+        })
+        .catch(function() {
+          return fetchBRouterTrekking(lat1, lng1, lat2, lng2);
+        })
+        .catch(function() {
+          return straight;
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+      var link = e.target.closest('a.place-link.place-name');
+      if (!link || link.tagName !== 'A') return;
+      if (e.ctrlKey || e.metaKey || e.button !== 0) return;
+      e.preventDefault();
+      var inner = link.closest('.popup-inner');
+      var metroKey = inner ? inner.getAttribute('data-metro-key') : 'london';
+      if (!metroKey) metroKey = 'london';
+      var ctx = metroByKey[metroKey];
+      if (!ctx) return;
+
+      var stationId = link.getAttribute('data-station-id');
+      var placeIdx = parseInt(link.getAttribute('data-place-idx'), 10);
+      var station = ctx.stations.filter(function(s) { return s.id === stationId; })[0];
+      var filteredPlaces = getFilteredPlaces(station);
+      if (!station || placeIdx < 0 || placeIdx >= filteredPlaces.length) return;
+      var place = filteredPlaces[placeIdx];
+      if (!place.lat || !place.lng) return;
+
+      ctx.map.closePopup();
+
+      ctx.clearDestinationAndRoute();
+
+      lastDestinationContext = { metroKey: metroKey, station: station, place: place };
+      destinationPickerProductArmed = false;
+
+      var pickerHint =
+        getRecommendedProductsForDestination(place.name).length > 0
+          ? place.name +
+            ' — 마커 클릭: 추천 상품. 모달에서 닫기 후 다시 클릭하면 경로가 지워집니다.'
+          : place.name + ' — 마커 클릭 시 경로·목적지가 지워집니다.';
+
+      ctx.currentPlaceMarker = L.marker([place.lat, place.lng], {
+        icon: destinationMarkerDivIcon(place),
+        zIndexOffset: 400,
+        interactive: true,
+        title: pickerHint
+      }).addTo(ctx.map);
+      ctx.currentPlaceMarker.on('click', function(ev) {
+        L.DomEvent.stopPropagation(ev);
+        var hasRecommended = getRecommendedProductsForDestination(place.name).length > 0;
+        if (!hasRecommended) {
+          ctx.clearDestinationAndRoute();
+          return;
+        }
+        if (destinationPickerProductArmed) {
+          ctx.clearDestinationAndRoute();
+          return;
+        }
+        openProductRecommendModal(place.name, station);
+      });
+
+      var bounds = L.latLngBounds([station.lat, station.lng], [place.lat, place.lng]);
+      ctx.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+
+      fetchPedestrianRoadRoute(station.lat, station.lng, place.lat, place.lng).then(function(coords) {
+        ctx.clearWalkingRoute();
+        ctx.currentRouteGroup = buildRouteGroup(coords);
+        ctx.currentRouteGroup.addTo(ctx.map);
+        if (ctx.currentPlaceMarker) ctx.currentPlaceMarker.bringToFront();
+      });
+    });
+
+    if (typeof initMasterProductPipeline === 'function') {
+      initMasterProductPipeline(metroByKey);
+    }
+    if (typeof applySubwayFilePresenceToTabs === 'function') {
+      applySubwayFilePresenceToTabs();
+    }
+    loadSubwayJsonForMetroKey('london');
+    if (typeof refreshLineLegendTourismState === 'function') {
+      refreshLineLegendTourismState();
+    }
+    if (typeof fetchOpenWeatherForMetro === 'function') {
+      fetchOpenWeatherForMetro('london');
+    }
+  </script>
+</body>
+</html>

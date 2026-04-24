@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cityKo": "뉴욕",
+  "metroKey": "newyork",
+  "source": "inline",
+  "note": "nycLineDefs / stationsNYC 인라인 데이터와 동기."
+}
