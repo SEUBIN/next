@@ -1,21 +1,53 @@
 /**
- * productList_20260424.csv: 마스터 상품명 → POI 좌표(없으면 도심 기본) → 역 클릭 시 해당 메트로 상품 마커.
- * locationMap(런던) / COORD_MAP → POI_CATALOG(별칭) → [ ] 괄호 제거 키워드 재검색 순. escapeHtml, L, window.currentCity 필요.
+ * productList_with_coords.csv: 위도·경도(우선) → 역 선택 시 반경 RADIUS_KM(km) 이내 상품만 POI(피커) 마커.
+ * 위도/경도가 없으면 COORD_MAP / POI_CATALOG / 키워드 → 그다음 METRO_DEFAULT_LANDMARK.
+ * escapeHtml, L, window.currentCity 필요.
  */
 (function (global) {
   'use strict';
 
   var MASTER_CSV_PRODUCTS = [];
-  /** 필터 해제: 도시(메트로) 내 모든 CSV 상품을 역·지도에 노출 (역–상품 직선거리 제한 없음) */
-  var RADIUS_KM = 1e7;
+  /**
+   * 역–POI(위경도) 사이 직선거리 상한( km).
+   * 도보 약 1시간(4~5 km/h)을 육로보다 짧은 지오데식 거리로 근사(직선 4.5 km 이내 = 후보).
+   */
+  var RADIUS_KM = 4.5;
 
-  /** POI/키워드에 매칭되지 않은 상품: 도심 기본 좌표(마커·거리용) */
+  /** POI/키워드/CSV 위경도에 매칭되지 않은 상품: 도심 기본 좌표(거리·폴백) */
   var METRO_DEFAULT_LANDMARK = {
     london: { lat: 51.5074, lng: -0.1278 },
     newyork: { lat: 40.73, lng: -73.99 },
     tokyo: { lat: 35.685, lng: 139.75 },
-    bangkok: { lat: 13.75, lng: 100.55 }
+    bangkok: { lat: 13.75, lng: 100.55 },
+    osaka: { lat: 34.6937, lng: 135.5023 },
+    fukuoka: { lat: 33.5904, lng: 130.4017 },
+    beijing: { lat: 39.9042, lng: 116.4074 },
+    shanghai: { lat: 31.2304, lng: 121.4737 },
+    taipei: { lat: 25.033, lng: 121.5654 },
+    singapore: { lat: 1.3521, lng: 103.8198 },
+    paris: { lat: 48.8566, lng: 2.3522 },
+    barcelona: { lat: 41.3851, lng: 2.1734 },
+    rome: { lat: 41.9028, lng: 12.4964 },
+    sydney: { lat: -33.8688, lng: 151.2093 }
   };
+
+  /** GNB탭 id와 메트로 키(HTML data-metro-tab) — updateTabs / CSV 가시성 */
+  var UI_TAB_SPECS = [
+    { m: 'newyork', el: 'tab-newyork' },
+    { m: 'tokyo', el: 'tab-tokyo' },
+    { m: 'osaka', el: 'tab-osaka' },
+    { m: 'fukuoka', el: 'tab-fukuoka' },
+    { m: 'bangkok', el: 'tab-bangkok' },
+    { m: 'beijing', el: 'tab-beijing' },
+    { m: 'shanghai', el: 'tab-shanghai' },
+    { m: 'taipei', el: 'tab-taipei' },
+    { m: 'singapore', el: 'tab-singapore' },
+    { m: 'paris', el: 'tab-paris' },
+    { m: 'barcelona', el: 'tab-barcelona' },
+    { m: 'london', el: 'tab-london' },
+    { m: 'rome', el: 'tab-rome' },
+    { m: 'sydney', el: 'tab-sydney' }
+  ];
 
   /**
    * 런던 주요 관광지: 마스터 상품명 키워드 → 대표 좌표 (자율 지오코딩).
@@ -177,27 +209,52 @@
     if (!t) return null;
     if (/^서울|서울특별시|Seoul/i.test(t)) return null;
     var L = t.toLowerCase();
-    if (L.indexOf('london') >= 0) return 'london';
-    if (t.indexOf('런던') >= 0) return 'london';
-    if (L.indexOf('new york') >= 0 || L === 'nyc' || t.indexOf('뉴욕') >= 0 || t.indexOf('뉴욕시') >= 0) return 'newyork';
+
+    if (L === 'london' || t === '런던') return 'london';
+    if (L === 'paris' || t === '파리') return 'paris';
+    if (L === 'barcelona' || t === '바르셀로나') return 'barcelona';
+    if (L === 'rome' || t === '로마' || t === 'roma') return 'rome';
+    if (L === 'sydney' || t === '시드니') return 'sydney';
+    if (L === 'singapore' || t === '싱가포르') return 'singapore';
+    if (L === 'taipei' || t === '타이페이' || t === '台北') return 'taipei';
+    if (L === 'osaka' || t === '오사카' || t === '大阪') return 'osaka';
+    if (L === 'fukuoka' || t === '후쿠오카' || t === '福岡') return 'fukuoka';
+    if (L === 'beijing' || t === '북경' || t === '北京' || t === '베이징') return 'beijing';
+    if (L === 'shanghai' || t === '상해' || t === '上海' || t === '샹하이') return 'shanghai';
+    if (L === 'tokyo' || t === '도쿄' || t === '東京') return 'tokyo';
+    if (L === 'bangkok' || t === '방콕' || t.indexOf('กรุงเทพ') >= 0) return 'bangkok';
+    if (L.indexOf('london') >= 0 || t.indexOf('런던') >= 0) return 'london';
+    if (L.indexOf('new york') >= 0 || L === 'nyc' || t === '뉴욕' || t === '뉴욕시' || t.indexOf('뉴욕') === 0) return 'newyork';
     if (L.indexOf('manhattan') >= 0) return 'newyork';
-    if (L.indexOf('tokyo') >= 0 || t.indexOf('도쿄') >= 0 || t.indexOf('東京') >= 0) return 'tokyo';
-    if (L.indexOf('bangkok') >= 0 || t.indexOf('방콕') >= 0 || t.indexOf('กรุงเทพ') >= 0) return 'bangkok';
-    if (t === '오사카' || t === '파리') return null;
+    if (L.indexOf('beijing') >= 0) return 'beijing';
+    if (L.indexOf('shanghai') >= 0) return 'shanghai';
+    if (L.indexOf('osaka') >= 0) return 'osaka';
+    if (L.indexOf('fukuoka') >= 0) return 'fukuoka';
+    if (L.indexOf('paris') >= 0) return 'paris';
+    if (L.indexOf('barcelona') >= 0) return 'barcelona';
+    if (L.indexOf('rome') >= 0 || t.indexOf('로마') >= 0) return 'rome';
+    if (L.indexOf('sydney') >= 0) return 'sydney';
+    if (L.indexOf('singapore') >= 0) return 'singapore';
+    if (L.indexOf('taipei') >= 0) return 'taipei';
+    if (L.indexOf('tokyo') >= 0) return 'tokyo';
+    if (L.indexOf('bangkok') >= 0) return 'bangkok';
+    if (L.indexOf('london') >= 0) return 'london';
+
     return null;
   }
 
   /**
-   * 지하철(또는 U·S-Bahn·경전철 등) 도심 궤도교통이 있는 **주요** 여행지(대표도시 표기)만 탭에 반영.
-   * CSV는 상품·행이 많아, 모듈이 지도를 제공하는 4곳(런던/뉴욕/도쿄/방콕)과 매칭되는지로 한정.
-   * (추가 도시·메트로 키는 repCityToMetro 확장 + 지도 HTML과 같이 늘림.)
+   * GNB에 있는 지하철 맵(대표도시)과 CSV 대표도시가 매핑될 때만 true.
    */
   function isMajorSubwayRepresentativeCity(name) {
     return repCityToMetro(String(name || '').trim()) != null;
   }
 
   function getVisibleMetroTabKeysFromRawCsv() {
-    var allOn = { london: true, newyork: true, tokyo: true, bangkok: true };
+    var allOn = {};
+    for (var ui = 0; ui < UI_TAB_SPECS.length; ui++) {
+      allOn[UI_TAB_SPECS[ui].m] = true;
+    }
     var text = getMasterCsvText();
     if (!text) return allOn;
     var rows = parseCsvText(text);
@@ -208,7 +265,10 @@
     if (headers[0]) headers[0] = headers[0].replace(/^\uFEFF/, '');
     var colCity = csvPickColumnIndex(headers, ['대표도시', '도시', '지역', '도시명']);
     if (colCity < 0) return allOn;
-    var have = { london: false, newyork: false, tokyo: false, bangkok: false };
+    var have = {};
+    for (var h0 = 0; h0 < UI_TAB_SPECS.length; h0++) {
+      have[UI_TAB_SPECS[h0].m] = false;
+    }
     var seen = Object.create(null);
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r];
@@ -222,14 +282,15 @@
       var mk = repCityToMetro(city);
       if (mk && have.hasOwnProperty(mk)) have[mk] = true;
     }
-    var any = have.london || have.newyork || have.tokyo || have.bangkok;
+    var any = false;
+    for (var k1 in have) {
+      if (have.hasOwnProperty(k1) && have[k1]) {
+        any = true;
+        break;
+      }
+    }
     if (!any) return allOn;
-    return {
-      london: have.london,
-      newyork: have.newyork,
-      tokyo: have.tokyo,
-      bangkok: have.bangkok
-    };
+    return have;
   }
 
   function csvKmDistance(lat1, lng1, lat2, lng2) {
@@ -443,10 +504,19 @@
       '지역',
       '도시명'
     ]);
+    var colLat = csvPickColumnIndex(headers, ['위도', 'lat', 'latitude', 'Latitude', 'LAT']);
+    var colLng = csvPickColumnIndex(headers, ['경도', 'lng', 'lon', 'longitude', 'Longitude', 'LNG', 'LON']);
+    var colPoiHint = csvPickColumnIndex(headers, [
+      '유추된_관광지_혹은_도시',
+      '유추된 관광지 혹은 도시',
+      'POI',
+      '관광지'
+    ]);
     var colCurrency = csvPickColumnIndex(headers, ['상품통화', '계약통화', '통화']);
     if (colName < 0) return [];
     var out = [];
     var coordUnassigned = 0;
+    var fromCsvLatLng = 0;
     var cityEligible = 0;
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r];
@@ -462,12 +532,29 @@
       var priceNum = priceStr === '' ? null : Number(priceStr);
       if (isNaN(priceNum)) priceNum = null;
       var codeForLm = colCode >= 0 ? (row[colCode] || '').trim() : '';
-      var lm = findPoiByProductName(name, mk);
-      if (!lm) {
-        coordUnassigned++;
-        var fb = METRO_DEFAULT_LANDMARK[mk];
-        if (!fb) continue;
-        lm = { name: name.length > 48 ? name.slice(0, 45) + '…' : name, lat: fb.lat, lng: fb.lng };
+      var latV = colLat >= 0 && row[colLat] != null ? parseFloat(String(row[colLat]).replace(/,/g, '')) : NaN;
+      var lngV = colLng >= 0 && row[colLng] != null ? parseFloat(String(row[colLng]).replace(/,/g, '')) : NaN;
+      var hasCsvCoords =
+        !isNaN(latV) &&
+        !isNaN(lngV) &&
+        Math.abs(latV) <= 90 &&
+        Math.abs(lngV) <= 180;
+      var lm;
+      if (hasCsvCoords) {
+        fromCsvLatLng++;
+        var hint =
+          colPoiHint >= 0 ? String(row[colPoiHint] != null ? row[colPoiHint] : '').trim() : '';
+        if (!hint) hint = extractAttractionKeywordFromMasterName(name);
+        if (!hint) hint = name.length > 48 ? name.slice(0, 45) + '…' : name;
+        lm = { name: hint, lat: latV, lng: lngV };
+      } else {
+        lm = findPoiByProductName(name, mk);
+        if (!lm) {
+          coordUnassigned++;
+          var fb = METRO_DEFAULT_LANDMARK[mk];
+          if (!fb) continue;
+          lm = { name: name.length > 48 ? name.slice(0, 45) + '…' : name, lat: fb.lat, lng: fb.lng };
+        }
       }
       out.push({
         productCode: codeForLm,
@@ -484,20 +571,25 @@
     }
     if (global.console && global.console.log) {
       global.console.log(
-        '[CSV 상품] 대표도시(런던/뉴욕/도쿄/방콕) 행: ' +
+        '[CSV 상품] 메트로 매칭 행: ' +
           cityEligible +
-          '개 → 키워드 미매칭(기본 좌표 사용): ' +
+          ' · CSV 위도/경도 사용: ' +
+          fromCsvLatLng +
+          ' · 키워드 미매칭(도심 기본): ' +
           coordUnassigned +
-          '개, 지도용 로드: ' +
-          out.length +
-          '개'
+          ' · 지도 로드: ' +
+          out.length
       );
     }
     return out;
   }
 
   function markStationsWithinProductRadius(metroByKey) {
-    var keys = ['london', 'newyork', 'tokyo', 'bangkok'];
+    var withProducts = {};
+    MASTER_CSV_PRODUCTS.forEach(function (p) {
+      if (p.metroKey) withProducts[p.metroKey] = true;
+    });
+    var keys = metroByKey ? Object.keys(metroByKey) : [];
     keys.forEach(function (k) {
       var ctx = metroByKey[k];
       if (!ctx || !ctx.stations) return;
@@ -507,6 +599,7 @@
       });
     });
     keys.forEach(function (metroKey) {
+      if (!withProducts[metroKey]) return;
       var ctx = metroByKey[metroKey];
       if (!ctx || !ctx.stations) return;
       ctx.stations.forEach(function (st) {
@@ -514,10 +607,8 @@
           if (p.metroKey !== metroKey || !p.landmark) return false;
           return csvKmDistance(st.lat, st.lng, p.landmark.lat, p.landmark.lng) <= RADIUS_KM;
         });
-        if (hasNear) {
-          st.csvNearest = true;
-          st.walkableRealTourism = true;
-        }
+        st.walkableRealTourism = hasNear;
+        st.csvNearest = hasNear;
       });
     });
   }
@@ -535,20 +626,6 @@
     );
   }
 
-  var CSV_PROD_SVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path d="M12 2.5l1.35 4h4.3l-3.5 2.55 1.35 4.15L12 11.2 8.5 13.2l1.35-4.15L6.35 6.5h4.3z" fill="#5e2bb8"/></svg>';
-
-  function productPoiIcon(label) {
-    var html =
-      '<div class="csv-tourism-poi-marker"><div class="csv-tourism-poi-marker__figure">' +
-      CSV_PROD_SVG +
-      '</div><span class="csv-tourism-poi-marker__badge">상품</span><div class="csv-tourism-poi-marker__name">' +
-      global.escapeHtml(String(label)) +
-      '</div></div>';
-    var w = Math.min(168, Math.max(80, 14 + String(label).length * 7));
-    return L.divIcon({ className: '', html: html, iconSize: [w, 52], iconAnchor: [w / 2, 52] });
-  }
-
   function clearPoi(ctx) {
     if (ctx && ctx.stationPoiLayer) ctx.stationPoiLayer.clearLayers();
   }
@@ -561,26 +638,42 @@
         } catch (e) {}
         p._csvMarker = null;
       }
-      if (!p.landmark || p.landmark.lat == null) return;
-      var m = L.marker([p.landmark.lat, p.landmark.lng], {
-        icon: productPoiIcon(p.landmark.name),
-        zIndexOffset: 400
-      });
-      var tip =
-        '<div style="min-width:200px;padding:4px 0">' +
-        '<p style="margin:0 0 6px 0;font-weight:700;font-size:0.9rem;word-break:keep-all">' +
-        global.escapeHtml(p.productName) +
-        '</p>' +
-        '<p style="margin:0;color:#5e2bb8;font-size:0.9rem"><strong>' +
-        global.escapeHtml(formatPriceLine(p)) +
-        '</strong></p>' +
-        '<p style="margin:8px 0 0;font-size:0.75rem;color:#6b7280">역을 선택하면 해당 도시의 상품이 지도에 표시됩니다.</p>' +
-        '<p style="margin:6px 0 0"><a style="color:#5e2bb8" href="' +
-        global.escapeHtml(masterProductHanatourHref(p)) +
-        '" target="_blank" rel="noopener">하나투어에서 보기</a></p></div>';
-      m.bindPopup(tip, { maxWidth: 320, className: 'csv-product-tip', autoPan: true });
-      p._csvMarker = m;
     });
+  }
+
+  /**
+   * 반경 이내 상품을 POI(landmark) 단위로 묶어 관광지 1곳 = 피커 1개. 가까운 관광지(역 기준) 순.
+   * @returns {Array<{ name: string, lat: number, lng: number, distanceM: number, productRows: Array<{product, distanceM}> }>}
+   */
+  function getAttractionGroupsNearStation(metroKey, station) {
+    if (!station) return [];
+    var near = getMasterProductsNearStationInternal(metroKey, station);
+    var buckets = Object.create(null);
+    near.forEach(function (row) {
+      var p = row.product;
+      if (!p.landmark || p.landmark.lat == null || p.landmark.lng == null) return;
+      var name = String(p.landmark.name != null ? p.landmark.name : 'POI')
+        .trim() || 'POI';
+      var lat = p.landmark.lat;
+      var lng = p.landmark.lng;
+      var key = name + '|' + lat.toFixed(5) + ',' + lng.toFixed(5);
+      if (!buckets[key]) {
+        buckets[key] = { name: name, lat: lat, lng: lng, rows: [] };
+      }
+      buckets[key].rows.push(row);
+    });
+    var out = Object.keys(buckets).map(function (k) {
+      var b = buckets[k];
+      b.rows.sort(function (a, c) {
+        return a.distanceM - c.distanceM;
+      });
+      var dMin = b.rows[0].distanceM;
+      return { name: b.name, lat: b.lat, lng: b.lng, distanceM: dMin, productRows: b.rows };
+    });
+    out.sort(function (a, c) {
+      return a.distanceM - c.distanceM;
+    });
+    return out;
   }
 
   /**
@@ -605,47 +698,28 @@
 
   function showMasterMarkersForStation(ctx, station) {
     clearPoi(ctx);
+    if (typeof global.clearCsvPoiSelectionState === 'function') {
+      try {
+        global.clearCsvPoiSelectionState(ctx);
+      } catch (e0) {}
+    }
     if (ctx && ctx.map && ctx.map.closePopup) ctx.map.closePopup();
     var cityKey = global.currentCity != null && global.currentCity !== '' ? global.currentCity : ctx.key;
     if (cityKey !== ctx.key) return;
-    var withDist = getMasterProductsNearStationInternal(cityKey, station);
-    var prods = withDist.map(function (w) {
-      return w.product;
-    });
+    var groups = getAttractionGroupsNearStation(cityKey, station);
     if (global.console && global.console.log) {
-      global.console.log('검색된 상품 개수: ' + prods.length + '개');
+      global.console.log('역 주변 POI(관광지) 그룹: ' + groups.length + ' · 상품 행: ' + (groups.reduce(function (n, g) { return n + g.productRows.length; }, 0)));
     }
-    prods.forEach(function (p) {
-      if (!p._csvMarker) return;
-      var distm = Math.round(
-        csvKmDistance(station.lat, station.lng, p.landmark.lat, p.landmark.lng) * 1000
-      );
-      var tip =
-        '<div style="min-width:200px;padding:4px 0">' +
-        '<p style="margin:0 0 6px 0;font-weight:700;font-size:0.9rem;word-break:keep-all">' +
-        global.escapeHtml(p.productName) +
-        '</p>' +
-        '<p style="margin:0;color:#5e2bb8;font-size:0.9rem"><strong>' +
-        global.escapeHtml(formatPriceLine(p)) +
-        '</strong></p>' +
-        '<p style="margin:8px 0 0;font-size:0.75rem;color:#6b7280">' +
-        (distm ? '선택한 역 · 직선거리 약 ' + distm + 'm' : '') +
-        '</p>' +
-        '<p style="margin:6px 0 0"><a style="color:#5e2bb8" href="' +
-        global.escapeHtml(masterProductHanatourHref(p)) +
-        '" target="_blank" rel="noopener">하나투어에서 보기</a></p></div>';
-      p._csvMarker.setPopupContent(tip);
-      p._csvMarker.addTo(ctx.stationPoiLayer);
-    });
-    try {
-      ctx.map.panTo(L.latLng(station.lat, station.lng), { animate: true, duration: 0.4 });
-    } catch (e) {
-      ctx.map.panTo([station.lat, station.lng]);
+    if (typeof global.showCsvAttractionPickers === 'function') {
+      global.showCsvAttractionPickers(ctx, station, groups);
     }
   }
 
   function countProductsByMetro() {
-    var c = { london: 0, newyork: 0, tokyo: 0, bangkok: 0 };
+    var c = {};
+    for (var ti = 0; ti < UI_TAB_SPECS.length; ti++) {
+      c[UI_TAB_SPECS[ti].m] = 0;
+    }
     MASTER_CSV_PRODUCTS.forEach(function (p) {
       if (p.landmark == null) return;
       if (c[p.metroKey] != null) c[p.metroKey]++;
@@ -656,14 +730,9 @@
   function updateTabsFromCsv() {
     var c = countProductsByMetro();
     var visibleCity = getVisibleMetroTabKeysFromRawCsv();
-    var order = [
-      { m: 'london', el: 'tab-london' },
-      { m: 'newyork', el: 'tab-newyork' },
-      { m: 'tokyo', el: 'tab-tokyo' },
-      { m: 'bangkok', el: 'tab-bangkok' }
-    ];
     var any = false;
-    order.forEach(function (o) {
+    for (var oi = 0; oi < UI_TAB_SPECS.length; oi++) {
+      var o = UI_TAB_SPECS[oi];
       var btn = document.getElementById(o.el);
       if (btn) {
         var okProducts = c[o.m] >= 1;
@@ -671,12 +740,13 @@
         btn.hidden = !okProducts || !okCityFilter;
         if (okProducts && okCityFilter) any = true;
       }
-    });
+    }
     if (!any) {
-      order.forEach(function (o) {
-        var btn = document.getElementById(o.el);
-        if (btn) btn.hidden = false;
-      });
+      for (var oi2 = 0; oi2 < UI_TAB_SPECS.length; oi2++) {
+        var o2 = UI_TAB_SPECS[oi2];
+        var b2 = document.getElementById(o2.el);
+        if (b2) b2.hidden = false;
+      }
     }
   }
 
@@ -686,9 +756,8 @@
     global.countMasterCsv = function () {
       return MASTER_CSV_PRODUCTS.length;
     };
-    var csvKeys = ['london', 'newyork', 'tokyo', 'bangkok'];
     if (metroByKey) {
-      csvKeys.forEach(function (k) {
+      Object.keys(metroByKey).forEach(function (k) {
         var c = metroByKey[k];
         if (c) clearPoi(c);
       });
@@ -705,6 +774,7 @@
   global.getMasterProductsNearStation = function (metroKey, station) {
     return getMasterProductsNearStationInternal(metroKey, station);
   };
+  global.getAttractionGroupsNearStation = getAttractionGroupsNearStation;
   global.formatMasterProductPrice = formatPriceLine;
   global.getMasterProductHanatourHref = masterProductHanatourHref;
   global.RADIUS_KM_CSV = RADIUS_KM;
@@ -722,7 +792,22 @@
     tokyo: '도쿄',
     bangkok: '방콕'
   };
-  global.LEGACY_INLINE_METRO_KEYS = { london: 1, newyork: 1, tokyo: 1, bangkok: 1 };
+  global.LEGACY_INLINE_METRO_KEYS = {
+    london: 1,
+    newyork: 1,
+    tokyo: 1,
+    bangkok: 1,
+    osaka: 1,
+    fukuoka: 1,
+    beijing: 1,
+    shanghai: 1,
+    taipei: 1,
+    singapore: 1,
+    paris: 1,
+    barcelona: 1,
+    rome: 1,
+    sydney: 1
+  };
   global.getSubwayJsonFileNameForMetroKey = function (metroKey) {
     var stem = global.METRO_KEY_TO_KOREAN_SUBWAY_FILE[metroKey];
     if (!stem) return null;

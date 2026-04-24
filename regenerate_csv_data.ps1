@@ -1,7 +1,7 @@
-# productList_20260424.csv (UTF-8) -> csv_data.js (Base64 in window.CSV_MASTER_B64)
+# productList_with_coords.csv (UTF-8) -> csv_data.js (Base64 in window.CSV_MASTER_B64)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$csvPath = Join-Path $root 'productList_20260424.csv'
+$csvPath = Join-Path $root 'productList_with_coords.csv'
 $outPath = Join-Path $root 'csv_data.js'
 if (-not (Test-Path $csvPath)) {
   Write-Error "File not found: $csvPath"

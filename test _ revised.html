@@ -420,6 +420,36 @@
       white-space: normal;
       max-width: 100%;
     }
+    .leaflet-popup.leaflet-csv-poi-popup .leaflet-popup-content-wrapper { border-radius: 10px; }
+    .csv-poi-popup { padding: 12px 14px 14px; min-width: 240px; max-width: 360px; }
+    .csv-poi-popup__head { font-size: 1rem; font-weight: 800; margin: 0 0 6px; color: var(--text-primary); word-break: keep-all; }
+    .csv-poi-popup__sub { font-size: 0.75rem; color: var(--text-muted, #6b7280); margin: 0 0 10px; line-height: 1.4; }
+    .csv-poi-popup__list { list-style: none; margin: 0; padding: 0; }
+    .csv-poi-popup__item { border-top: 1px solid var(--border); }
+    .csv-poi-popup__item:first-of-type { border-top: 0; }
+    .csv-poi-popup__link { display: block; padding: 8px 0; text-decoration: none; color: inherit; }
+    .csv-poi-popup__link:hover { color: #5e2bb8; }
+    .csv-poi-popup__title { display: block; font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+    .csv-poi-popup__meta { display: block; font-size: 0.75rem; color: #6b7280; margin-top: 2px; }
+    .csv-poi-popup--one { padding: 6px 2px 4px; }
+    /* 목업: 관광지(대) + 상품(작은 흰 원+실루엣) */
+    .csv-subpicker-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      cursor: pointer;
+      color: #1e293b;
+    }
+    .csv-subpicker-marker--hot {
+      z-index: 1;
+    }
+    .csv-subpicker-marker__svg { display: block; }
     /* 경로 위 보행 표시 (작은 보행자 아이콘) */
     .route-walker {
       width: 30px;
@@ -757,6 +787,20 @@
       transform: translateY(0);
     }
     .map-gnb__tab[hidden] { display: none !important; }
+    .map-gnb {
+      padding: 0 4px;
+    }
+    .map-gnb__tabs--flat {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+    .line-legend__bar--dyn {
+      background: var(--dyn-line, #666);
+    }
+    .station-marker--dyn .station-marker-label__text {
+      color: var(--text-primary);
+    }
     .csv-tourism-poi-marker {
       display: flex;
       flex-direction: column;
@@ -800,19 +844,29 @@
     <header class="page-header">
       <div class="page-header__accent" aria-hidden="true"></div>
       <h1>Next Stop: Up to You</h1>
-      <p class="subtitle">노선을 고른 뒤 역을 누르면, <strong>productList_20260424.csv</strong>에서 매칭된 상품만 보라색 마커로 표시됩니다(클릭 시 상품명·판매가). <span class="muted">지도: CARTO · 도로·경로: OpenStreetMap</span></p>
+      <p class="subtitle">노선·<strong>역</strong> 선택 → 직선 <strong>도보 1시간(4.5km) 이내</strong> 관광지가 <strong>큰 목적지 마커(이름)</strong>로 뜨고, 상품이 2개 이상이면 그 주변에 <strong>작은 원형 피커</strong>가 나열됩니다. <strong>대표 마커</strong>는 전체 상품, <strong>작은 피커</strong>는 그 상품만 <strong>팝업</strong>으로 봅니다(대표 마커는 다시 누르면 닫힘). <span class="muted">productList_with_coords · CARTO</span></p>
     </header>
     <div class="map-section">
       <div id="map-wrap">
-        <nav class="map-gnb" aria-label="지역·노선 선택">
-          <div class="map-gnb__tabs" id="map-gnb-tabs" role="tablist">
-            <button type="button" class="map-gnb__tab is-active" role="tab" id="tab-london" aria-selected="true" aria-controls="map-panel-london" data-metro-tab="london">런던 지하철</button>
-            <button type="button" class="map-gnb__tab" role="tab" id="tab-newyork" aria-selected="false" aria-controls="map-panel-newyork" data-metro-tab="newyork">뉴욕 지하철</button>
-            <button type="button" class="map-gnb__tab" role="tab" id="tab-tokyo" aria-selected="false" aria-controls="map-panel-tokyo" data-metro-tab="tokyo">도쿄 지하철</button>
-            <button type="button" class="map-gnb__tab" role="tab" id="tab-bangkok" aria-selected="false" aria-controls="map-panel-bangkok" data-metro-tab="bangkok">방콕 지하철</button>
+        <nav class="map-gnb" aria-label="지역·노선 선택" id="map-gnb-tabs">
+          <div class="map-gnb__tabs map-gnb__tabs--flat" role="tablist">
+            <button type="button" class="map-gnb__tab is-active" role="tab" id="tab-newyork" aria-selected="true" aria-controls="map-panel-newyork" data-metro-tab="newyork">뉴욕</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-tokyo" aria-selected="false" aria-controls="map-panel-tokyo" data-metro-tab="tokyo">도쿄</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-osaka" aria-selected="false" aria-controls="map-panel-osaka" data-metro-tab="osaka">오사카</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-fukuoka" aria-selected="false" aria-controls="map-panel-fukuoka" data-metro-tab="fukuoka">후쿄카</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-bangkok" aria-selected="false" aria-controls="map-panel-bangkok" data-metro-tab="bangkok">방콕</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-beijing" aria-selected="false" aria-controls="map-panel-beijing" data-metro-tab="beijing">북경</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-shanghai" aria-selected="false" aria-controls="map-panel-shanghai" data-metro-tab="shanghai">상해</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-taipei" aria-selected="false" aria-controls="map-panel-taipei" data-metro-tab="taipei">타이페이</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-singapore" aria-selected="false" aria-controls="map-panel-singapore" data-metro-tab="singapore">싱가포르</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-paris" aria-selected="false" aria-controls="map-panel-paris" data-metro-tab="paris">파리</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-barcelona" aria-selected="false" aria-controls="map-panel-barcelona" data-metro-tab="barcelona">바르셀로나</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-london" aria-selected="false" aria-controls="map-panel-london" data-metro-tab="london">런던</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-rome" aria-selected="false" aria-controls="map-panel-rome" data-metro-tab="rome">로마</button>
+            <button type="button" class="map-gnb__tab" role="tab" id="tab-sydney" aria-selected="false" aria-controls="map-panel-sydney" data-metro-tab="sydney">시드니</button>
           </div>
         </nav>
-        <div id="map-panel-london" class="map-tab-panel is-active" role="tabpanel" aria-labelledby="tab-london">
+        <div id="map-panel-london" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-london">
           <aside class="line-legend line-legend--london" aria-label="런던 튜브 노선 선택">
             <p class="line-legend__title">노선 선택</p>
             <div class="line-legend__body">
@@ -840,7 +894,7 @@
             </div>
           </div>
         </div>
-        <div id="map-panel-newyork" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-newyork">
+        <div id="map-panel-newyork" class="map-tab-panel is-active" role="tabpanel" aria-labelledby="tab-newyork">
           <aside class="line-legend line-legend--nyc" aria-label="뉴욕 지하철 노선 선택">
             <p class="line-legend__title">노선 선택</p>
             <div class="line-legend__body">
@@ -911,6 +965,222 @@
             </div>
           </div>
         </div>
+        <div id="map-panel-osaka" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-osaka">
+          <aside class="line-legend line-legend--osaka" data-metro-legend="osaka" aria-label="오사카 지하철 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="os-mido" role="button" tabindex="0"><span class="line-legend__bar" style="background:#e5171f" aria-hidden="true"></span><span class="line-legend__name">御堂筋</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="os-chuo" role="button" tabindex="0"><span class="line-legend__bar" style="background:#019a66" aria-hidden="true"></span><span class="line-legend__name">中央</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="os-tani" role="button" tabindex="0"><span class="line-legend__bar" style="background:#9a7bb8" aria-hidden="true"></span><span class="line-legend__name">谷町</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="os-senn" role="button" tabindex="0"><span class="line-legend__bar" style="background:#ee86b0" aria-hidden="true"></span><span class="line-legend__name">千日前</span></div>
+            </div>
+          </aside>
+          <div id="map-osaka" class="map-canvas"></div>
+          <div id="map-weather-osaka" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-osaka-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">오사카</p>
+                <p class="map-weather__temp" id="map-weather-osaka-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-osaka-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-fukuoka" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-fukuoka">
+          <aside class="line-legend" data-metro-legend="fukuoka" aria-label="후쿠오카 시 지하철 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="fu-kuko" role="button" tabindex="0"><span class="line-legend__bar" style="background:#f19c00" aria-hidden="true"></span><span class="line-legend__name">공항</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="fu-hako" role="button" tabindex="0"><span class="line-legend__bar" style="background:#1bb267" aria-hidden="true"></span><span class="line-legend__name">箱崎</span></div>
+            </div>
+          </aside>
+          <div id="map-fukuoka" class="map-canvas"></div>
+          <div id="map-weather-fukuoka" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-fukuoka-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">후쿠오카</p>
+                <p class="map-weather__temp" id="map-weather-fukuoka-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-fukuoka-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-beijing" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-beijing">
+          <aside class="line-legend" data-metro-legend="beijing" aria-label="북경 지하철 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bj-l1" role="button" tabindex="0"><span class="line-legend__bar" style="background:#c43b0d" aria-hidden="true"></span><span class="line-legend__name">1</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bj-l2" role="button" tabindex="0"><span class="line-legend__bar" style="background:#0059b3" aria-hidden="true"></span><span class="line-legend__name">2</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bj-l4" role="button" tabindex="0"><span class="line-legend__bar" style="background:#008a5b" aria-hidden="true"></span><span class="line-legend__name">4</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bj-l5" role="button" tabindex="0"><span class="line-legend__bar" style="background:#994878" aria-hidden="true"></span><span class="line-legend__name">5</span></div>
+            </div>
+          </aside>
+          <div id="map-beijing" class="map-canvas"></div>
+          <div id="map-weather-beijing" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-beijing-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">북경</p>
+                <p class="map-weather__temp" id="map-weather-beijing-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-beijing-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-shanghai" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-shanghai">
+          <aside class="line-legend" data-metro-legend="shanghai" aria-label="상하이 지하철 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sh-l1" role="button" tabindex="0"><span class="line-legend__bar" style="background:#e3002b" aria-hidden="true"></span><span class="line-legend__name">1</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sh-l2" role="button" tabindex="0"><span class="line-legend__bar" style="background:#82b816" aria-hidden="true"></span><span class="line-legend__name">2</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sh-l10" role="button" tabindex="0"><span class="line-legend__bar" style="background:#6f2277" aria-hidden="true"></span><span class="line-legend__name">10</span></div>
+            </div>
+          </aside>
+          <div id="map-shanghai" class="map-canvas"></div>
+          <div id="map-weather-shanghai" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-shanghai-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">상해</p>
+                <p class="map-weather__temp" id="map-weather-shanghai-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-shanghai-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-taipei" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-taipei">
+          <aside class="line-legend" data-metro-legend="taipei" aria-label="타이베이 메트로 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tp-red" role="button" tabindex="0"><span class="line-legend__bar" style="background:#e50033" aria-hidden="true"></span><span class="line-legend__name">R (홍)</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tp-blue" role="button" tabindex="0"><span class="line-legend__bar" style="background:#0070bd" aria-hidden="true"></span><span class="line-legend__name">BL (청)</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tp-green" role="button" tabindex="0"><span class="line-legend__bar" style="background:#008955" aria-hidden="true"></span><span class="line-legend__name">G (녹)</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="tp-orange" role="button" tabindex="0"><span class="line-legend__bar" style="background:#f8b21c" aria-hidden="true"></span><span class="line-legend__name">O (주)</span></div>
+            </div>
+          </aside>
+          <div id="map-taipei" class="map-canvas"></div>
+          <div id="map-weather-taipei" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-taipei-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">타이페이</p>
+                <p class="map-weather__temp" id="map-weather-taipei-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-taipei-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-singapore" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-singapore">
+          <aside class="line-legend" data-metro-legend="singapore" aria-label="싱가포르 MRT·LRT 노선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sg-ns" role="button" tabindex="0"><span class="line-legend__bar" style="background:#d42e12" aria-hidden="true"></span><span class="line-legend__name">NS</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sg-ew" role="button" tabindex="0"><span class="line-legend__bar" style="background:#009645" aria-hidden="true"></span><span class="line-legend__name">EW</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sg-ne" role="button" tabindex="0"><span class="line-legend__bar" style="background:#9016b0" aria-hidden="true"></span><span class="line-legend__name">NE</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sg-ce" role="button" tabindex="0"><span class="line-legend__bar" style="background:#f98821" aria-hidden="true"></span><span class="line-legend__name">CC</span></div>
+            </div>
+          </aside>
+          <div id="map-singapore" class="map-canvas"></div>
+          <div id="map-weather-singapore" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-singapore-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">싱가포르</p>
+                <p class="map-weather__temp" id="map-weather-singapore-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-singapore-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-paris" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-paris">
+          <aside class="line-legend" data-metro-legend="paris" aria-label="파리 메트로">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="pa-m1" role="button" tabindex="0"><span class="line-legend__bar" style="background:#ffbe00" aria-hidden="true"></span><span class="line-legend__name">M1</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="pa-m4" role="button" tabindex="0"><span class="line-legend__bar" style="background:#a40069" aria-hidden="true"></span><span class="line-legend__name">M4</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="pa-m6" role="button" tabindex="0"><span class="line-legend__bar" style="background:#6bb587" aria-hidden="true"></span><span class="line-legend__name">M6</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="pa-m8" role="button" tabindex="0"><span class="line-legend__bar" style="background:#d282be" aria-hidden="true"></span><span class="line-legend__name">M8</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="pa-m12" role="button" tabindex="0"><span class="line-legend__bar" style="background:#006ba6" aria-hidden="true"></span><span class="line-legend__name">M12</span></div>
+            </div>
+          </aside>
+          <div id="map-paris" class="map-canvas"></div>
+          <div id="map-weather-paris" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-paris-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">파리</p>
+                <p class="map-weather__temp" id="map-weather-paris-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-paris-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-barcelona" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-barcelona">
+          <aside class="line-legend" data-metro-legend="barcelona" aria-label="바르셀로나 메트로">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bc-l1" role="button" tabindex="0"><span class="line-legend__bar" style="background:#c40048" aria-hidden="true"></span><span class="line-legend__name">L1</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bc-l2" role="button" tabindex="0"><span class="line-legend__bar" style="background:#9331a0" aria-hidden="true"></span><span class="line-legend__name">L2</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bc-l3" role="button" tabindex="0"><span class="line-legend__bar" style="background:#00a550" aria-hidden="true"></span><span class="line-legend__name">L3</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="bc-l4" role="button" tabindex="0"><span class="line-legend__bar" style="background:#fe8d00" aria-hidden="true"></span><span class="line-legend__name">L4</span></div>
+            </div>
+          </aside>
+          <div id="map-barcelona" class="map-canvas"></div>
+          <div id="map-weather-barcelona" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-barcelona-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">바르셀로나</p>
+                <p class="map-weather__temp" id="map-weather-barcelona-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-barcelona-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-rome" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-rome">
+          <aside class="line-legend" data-metro-legend="rome" aria-label="로마 메트로">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="rm-a" role="button" tabindex="0"><span class="line-legend__bar" style="background:#f58220" aria-hidden="true"></span><span class="line-legend__name">A</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="rm-b" role="button" tabindex="0"><span class="line-legend__bar" style="background:#0069b1" aria-hidden="true"></span><span class="line-legend__name">B</span></div>
+            </div>
+          </aside>
+          <div id="map-rome" class="map-canvas"></div>
+          <div id="map-weather-rome" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-rome-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">로마</p>
+                <p class="map-weather__temp" id="map-weather-rome-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-rome-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="map-panel-sydney" class="map-tab-panel" role="tabpanel" aria-labelledby="tab-sydney">
+          <aside class="line-legend" data-metro-legend="sydney" aria-label="Sydney Trains(시드니) 주요 선">
+            <p class="line-legend__title">노선 선택</p>
+            <div class="line-legend__body">
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sy-t1" role="button" tabindex="0"><span class="line-legend__bar" style="background:#f1b51c" aria-hidden="true"></span><span class="line-legend__name">T1 Nth</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sy-t2" role="button" tabindex="0"><span class="line-legend__bar" style="background:#ec7406" aria-hidden="true"></span><span class="line-legend__name">T2 Apx</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sy-t4" role="button" tabindex="0"><span class="line-legend__bar" style="background:#1e90ff" aria-hidden="true"></span><span class="line-legend__name">T4 East</span></div>
+              <div class="line-legend__row line-legend__row--selectable" data-tube-line="sy-t8" role="button" tabindex="0"><span class="line-legend__bar" style="background:#2f5f9a" aria-hidden="true"></span><span class="line-legend__name">T8 Sth</span></div>
+            </div>
+          </aside>
+          <div id="map-sydney" class="map-canvas"></div>
+          <div id="map-weather-sydney" class="map-weather map-weather--loading" aria-live="polite" role="status">
+            <div class="map-weather__row">
+              <img class="map-weather__icon" id="map-weather-sydney-icon" width="44" height="44" alt="" style="display:none" />
+              <div>
+                <p class="map-weather__city">시드니</p>
+                <p class="map-weather__temp" id="map-weather-sydney-temp">--</p>
+                <p class="map-weather__desc" id="map-weather-sydney-desc">날씨 불러오는 중…</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -943,7 +1213,7 @@
     </div>
   </div>
 
-  <!-- productList_20260424.csv (UTF-8) → Base64. HTML과 같은 폴더에 두세요. -->
+  <!-- productList_with_coords.csv (UTF-8) → Base64 in csv_data.js. CSV 갱신 시 base64를 다시 생성하세요. -->
   <script>
     /* OpenWeatherMap 키가 있으면 우선 사용. 없거나 실패 시 API 키 없이 Open-Meteo(브라우저 CORS OK)로 표시 */
     window.OPENWEATHERMAP_API_KEY = window.OPENWEATHERMAP_API_KEY || '';
@@ -951,6 +1221,7 @@
   <script src="csv_data.js" charset="utf-8"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="master_product_logic.js" charset="utf-8"></script>
+  <script src="metro_line_networks.js" charset="utf-8"></script>
   <script>
     // ----- 공통 데이터 -----
     // 서울 중심 (아래에서 지도 초기화 시 사용)
@@ -2149,6 +2420,25 @@
 
     var stationsBangkok = buildBangkokStationList(stationsBangkokTourism, bangkokLineDefs);
 
+    var METRO_LINE_DEFS_BY_KEY = {
+      london: londonLineDefs,
+      newyork: nycLineDefs,
+      tokyo: tokyoLineDefs,
+      bangkok: bangkokLineDefs
+    };
+    if (typeof window.METRO_EXTRA_LINE_DEFS === 'object' && window.METRO_EXTRA_LINE_DEFS) {
+      for (var _mx in window.METRO_EXTRA_LINE_DEFS) {
+        if (Object.prototype.hasOwnProperty.call(window.METRO_EXTRA_LINE_DEFS, _mx)) {
+          METRO_LINE_DEFS_BY_KEY[_mx] = window.METRO_EXTRA_LINE_DEFS[_mx];
+        }
+      }
+    }
+
+    /** productList_with_coords: 메트로 탭 도시—역 클릭 시 CSV 근접 상품(POI) */
+    var CSV_METRO_KEYS = {
+      newyork: 1, tokyo: 1, osaka: 1, fukuoka: 1, bangkok: 1, beijing: 1, shanghai: 1, taipei: 1, singapore: 1, paris: 1, barcelona: 1, london: 1, rome: 1, sydney: 1
+    };
+
     var PER_PAGE = 5;
     var MAX_WALK_MIN = 9999; // 필터 해제: 관광지 전부 팝업에 표시(원래 60)
 
@@ -2484,6 +2774,106 @@
       });
     }
 
+    function buildCsvOneProductPopupHtml(row, poiName, station) {
+      var p = row.product;
+      if (!p) return '';
+      var hrefFor = function(prod) {
+        return typeof getMasterProductHanatourHref === 'function'
+          ? getMasterProductHanatourHref(prod)
+          : 'https://www.hanatour.com/?searchKeyword=' + encodeURIComponent(prod.productCode || prod.productName);
+      };
+      var priceLine = function(prod) {
+        return typeof formatMasterProductPrice === 'function'
+          ? formatMasterProductPrice(prod)
+          : prod.price != null
+            ? String(prod.price)
+            : '가격문의';
+      };
+      return (
+        '<div class="csv-poi-popup csv-poi-popup--one">' +
+        '<p class="csv-poi-popup__head" style="font-size:0.9rem">' +
+        escapeHtml(poiName || '관광지') +
+        '</p>' +
+        '<p class="csv-poi-popup__sub" style="margin:4px 0 8px">관련 상품</p>' +
+        '<a class="csv-poi-popup__link" style="display:block" href="' +
+        escapeHtml(hrefFor(p)) +
+        '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' +
+        '<span class="csv-poi-popup__title">' +
+        escapeHtml(p.productName) +
+        '</span>' +
+        '<span class="csv-poi-popup__meta">' +
+        escapeHtml(priceLine(p)) +
+        ' · 역 ' +
+        row.distanceM.toLocaleString('ko-KR') +
+        'm (직선)</span></a></div>'
+      );
+    }
+
+    function buildCsvPoiProductPopupHtml(g, station) {
+      var hrefFor = function(p) {
+        return typeof getMasterProductHanatourHref === 'function'
+          ? getMasterProductHanatourHref(p)
+          : 'https://www.hanatour.com/?searchKeyword=' + encodeURIComponent(p.productCode || p.productName);
+      };
+      var priceLine = function(p) {
+        return typeof formatMasterProductPrice === 'function'
+          ? formatMasterProductPrice(p)
+          : p.price != null
+            ? String(p.price)
+            : '가격문의';
+      };
+      var dPoi = g.distanceM;
+      var distPoi = dPoi >= 1000 ? (dPoi / 1000).toFixed(1) + 'km' : dPoi + 'm';
+      var rkm = typeof RADIUS_KM_CSV === 'number' ? RADIUS_KM_CSV : 4.5;
+      var li = (g.productRows || []).map(function(row) {
+        var p = row.product;
+        return (
+          '<li class="csv-poi-popup__item"><a class="csv-poi-popup__link" href="' +
+          escapeHtml(hrefFor(p)) +
+          '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' +
+          '<span class="csv-poi-popup__title">' +
+          escapeHtml(p.productName) +
+          '</span><span class="csv-poi-popup__meta">' +
+          escapeHtml(priceLine(p)) +
+          ' · 역 ' +
+          row.distanceM.toLocaleString('ko-KR') +
+          'm (직선)</span></a></li>'
+        );
+      });
+      return (
+        '<div class="csv-poi-popup">' +
+        '<p class="csv-poi-popup__head">' +
+        escapeHtml(g.name) +
+        '</p>' +
+        '<p class="csv-poi-popup__sub">역: ' +
+        escapeHtml(station && station.name ? station.name : '') +
+        ' · POI ' +
+        distPoi +
+        ' (직선, 도보 1시간 기준 ' +
+        rkm +
+        'km 이내)</p><ul class="csv-poi-popup__list">' +
+        li.join('') +
+        '</ul></div>'
+      );
+    }
+
+    function clearCsvPoiSelectionState(ctx) {
+      if (!ctx) return;
+      if (ctx._csvPoiMarker) {
+        try {
+          ctx._csvPoiMarker.setZIndexOffset(450);
+        } catch (e1) {}
+        try {
+          if (ctx._csvPoiMarker.isPopupOpen && ctx._csvPoiMarker.isPopupOpen()) {
+            ctx._csvPoiMarker.closePopup();
+          }
+        } catch (e2) {}
+      }
+      ctx._csvPoiKey = null;
+      ctx._csvPoiMarker = null;
+    }
+    window.clearCsvPoiSelectionState = clearCsvPoiSelectionState;
+
     function initProductRecommendModalUi() {
       var overlay = document.getElementById('product-modal-overlay');
       var closeBtn = document.getElementById('product-modal-close');
@@ -2558,6 +2948,7 @@
     }
 
     function lineHasWalkableRealTourism(ctx, lineKey) {
+      if (!CSV_METRO_KEYS[ctx.key]) return true;
       return ctx.stations.some(function(st) {
         return stationOnMetroLine(ctx, st, lineKey) && st.walkableRealTourism;
       });
@@ -2621,16 +3012,26 @@
     }
 
     var metroByKey = {};
-    var activeMetroKey = 'london';
-    /** CSV 상품 필터·마스터 스크립트와 동기 (런던/뉴욕/도쿄/방콕만) */
-    var currentCity = 'london';
+    var activeMetroKey = 'newyork';
+    /** CSV 상품 필터·마스터 스크립트와 동기 (인터랙티브: 런던/뉴욕/도쿄/방콕) */
+    var currentCity = 'newyork';
     window.currentCity = currentCity;
     var lastSubwayJsonByKey = {};
     var METRO_TAB_CENTERS = {
-      london: { lat: 51.5074, lng: -0.1278, z: 12 },
       newyork: { lat: 40.73, lng: -73.99, z: 12 },
       tokyo: { lat: 35.685, lng: 139.75, z: 12 },
-      bangkok: { lat: 13.75, lng: 100.55, z: 12 }
+      osaka: { lat: 34.6937, lng: 135.5023, z: 12 },
+      fukuoka: { lat: 33.5904, lng: 130.4017, z: 12 },
+      bangkok: { lat: 13.75, lng: 100.55, z: 12 },
+      beijing: { lat: 39.9042, lng: 116.4074, z: 12 },
+      shanghai: { lat: 31.2304, lng: 121.4737, z: 12 },
+      taipei: { lat: 25.033, lng: 121.5654, z: 12 },
+      singapore: { lat: 1.3521, lng: 103.8198, z: 12 },
+      paris: { lat: 48.8566, lng: 2.3522, z: 12 },
+      barcelona: { lat: 41.3851, lng: 2.1734, z: 12 },
+      london: { lat: 51.5074, lng: -0.1278, z: 12 },
+      rome: { lat: 41.9028, lng: 12.4964, z: 12 },
+      sydney: { lat: -33.8688, lng: 151.2093, z: 12 }
     };
 
     function loadSubwayJsonForMetroKey(metroKey) {
@@ -2819,54 +3220,27 @@
     }
 
     function fitMapToAllNetworkBounds(ctx) {
-      if (ctx.key === 'london') {
-        var ubL = boundsFromPathList(londonLineDefs.map(function(d) { return d.coords; }));
-        ctx.map.fitBounds(ubL, { padding: [20, 20], maxZoom: 14 });
-      } else if (ctx.key === 'newyork') {
-        var ubN = boundsFromPathList(nycLineDefs.map(function(d) { return d.coords; }));
-        ctx.map.fitBounds(ubN, { padding: [20, 20], maxZoom: 13 });
-      } else if (ctx.key === 'tokyo') {
-        var ubT = boundsFromPathList(tokyoLineDefs.map(function(d) { return d.coords; }));
-        ctx.map.fitBounds(ubT, { padding: [20, 20], maxZoom: 14 });
-      } else if (ctx.key === 'bangkok') {
-        var ubB = boundsFromPathList(bangkokLineDefs.map(function(d) { return d.coords; }));
-        ctx.map.fitBounds(ubB, { padding: [20, 20], maxZoom: 12 });
+      var defs = METRO_LINE_DEFS_BY_KEY[ctx.key];
+      if (defs && defs.length) {
+        var ub = boundsFromPathList(defs.map(function(d) { return d.coords; }));
+        var mz = ctx.key === 'newyork' ? 13 : ctx.key === 'bangkok' || ctx.key === 'sydney' ? 12 : 14;
+        ctx.map.fitBounds(ub, { padding: [20, 20], maxZoom: mz });
       }
     }
 
     function fitMapToSelectedLineBounds(ctx, lineKey) {
       if (lineKey === null || lineKey === undefined) return;
-      var path = null;
-      if (ctx.key === 'london') {
-        var ld = londonLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
-        path = ld && ld.coords;
-      } else if (ctx.key === 'newyork') {
-        var nd = nycLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
-        path = nd && nd.coords;
-      } else if (ctx.key === 'tokyo') {
-        var td = tokyoLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
-        path = td && td.coords;
-      } else if (ctx.key === 'bangkok') {
-        var bd = bangkokLineDefs.filter(function(d) { return d.lineId === lineKey; })[0];
-        path = bd && bd.coords;
-      }
+      var defs = METRO_LINE_DEFS_BY_KEY[ctx.key];
+      if (!defs) return;
+      var d0 = defs.filter(function(d) { return d.lineId === lineKey; })[0];
+      var path = d0 && d0.coords;
       if (!path || path.length < 2) return;
       var b = boundsFromPathList([path]);
       ctx.map.fitBounds(b, { padding: [52, 52], maxZoom: 16 });
     }
 
     function updateLineLegendSelection(metroKey, activeKey) {
-      var panelId =
-        metroKey === 'london'
-          ? 'map-panel-london'
-          : metroKey === 'newyork'
-            ? 'map-panel-newyork'
-            : metroKey === 'tokyo'
-              ? 'map-panel-tokyo'
-              : metroKey === 'bangkok'
-                ? 'map-panel-bangkok'
-                : 'map-panel-london';
-      var panel = document.getElementById(panelId);
+      var panel = document.getElementById('map-panel-' + metroKey);
       if (!panel) return;
       panel.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
         var k = row.getAttribute('data-tube-line');
@@ -2883,25 +3257,22 @@
         fitMapToAllNetworkBounds(ctx);
         return;
       }
-      var isCsvMetro = ['london', 'newyork', 'tokyo', 'bangkok'].indexOf(ctx.key) >= 0;
+      var isCsvMetro = !!CSV_METRO_KEYS[ctx.key];
       ctx.stations.forEach(function(station) {
         var match = station.tubeLineKey === lineKey;
         if (!match) return;
         var iconStation = Object.assign({}, station, { tubeLineKey: lineKey });
-        var hasRealTour = !!station.walkableRealTourism;
-        var icon = stationLabelDivIcon(iconStation, ctx.key, undefined, !hasRealTour);
+        var hasRealTour = isCsvMetro && !!station.walkableRealTourism;
+        var icon = stationLabelDivIcon(iconStation, ctx.key, undefined, isCsvMetro ? !hasRealTour : false);
         var marker = L.marker([station.lat, station.lng], {
           icon: icon,
           interactive: hasRealTour
         }).addTo(ctx.stationLayer);
-        if (hasRealTour) {
-          if (isCsvMetro && typeof onStationClickShowMasterCsv === 'function') {
+        if (hasRealTour && isCsvMetro) {
+          if (typeof onStationClickShowMasterCsv === 'function') {
             marker.on('click', function(ev) {
               L.DomEvent.stopPropagation(ev);
               onStationClickShowMasterCsv(ctx, station);
-              if (typeof openMasterCsvProductModal === 'function') {
-                openMasterCsvProductModal(ctx, station);
-              }
             });
           } else {
             marker.bindPopup(makePopupContent(station, 1, ctx.key), {
@@ -2955,140 +3326,57 @@
       fitMapToAllNetworkBounds(ctx);
     }
 
+    function installLineDefsOnMap(ctx, lineDefs) {
+      var grayMix = 0.52;
+      lineDefs.forEach(function(def) {
+        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
+        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
+        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
+        var trackOp = lineOn ? 1 : 0.78;
+        L.polyline(def.coords, {
+          color: outlineCol,
+          weight: 10,
+          opacity: lineOn ? 0.9 : 0.75,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        L.polyline(def.coords, {
+          color: trackCol,
+          weight: 6,
+          opacity: trackOp,
+          interactive: false
+        }).addTo(ctx.lineTracksLayer);
+        var hit = L.polyline(def.coords, {
+          color: '#000000',
+          weight: 20,
+          opacity: 0.007,
+          interactive: true
+        });
+        hit.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          toggleLineStationView(ctx, def.lineId);
+        });
+        hit.addTo(ctx.hitLayer);
+      });
+      fitMapToAllNetworkBounds(ctx);
+    }
+
     function installLondonLines(ctx) {
-      var grayMix = 0.52;
-      londonLineDefs.forEach(function(def) {
-        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
-        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
-        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
-        var trackOp = lineOn ? 1 : 0.78;
-        L.polyline(def.coords, {
-          color: outlineCol,
-          weight: 10,
-          opacity: lineOn ? 0.9 : 0.75,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        L.polyline(def.coords, {
-          color: trackCol,
-          weight: 6,
-          opacity: trackOp,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        var hit = L.polyline(def.coords, {
-          color: '#000000',
-          weight: 20,
-          opacity: 0.007,
-          interactive: true
-        });
-        hit.on('click', function(e) {
-          L.DomEvent.stopPropagation(e);
-          toggleLineStationView(ctx, def.lineId);
-        });
-        hit.addTo(ctx.hitLayer);
-      });
-      fitMapToAllNetworkBounds(ctx);
+      installLineDefsOnMap(ctx, londonLineDefs);
     }
-
     function installNYCLines(ctx) {
-      var grayMix = 0.52;
-      nycLineDefs.forEach(function(def) {
-        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
-        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
-        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
-        var trackOp = lineOn ? 1 : 0.78;
-        L.polyline(def.coords, {
-          color: outlineCol,
-          weight: 10,
-          opacity: lineOn ? 0.9 : 0.75,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        L.polyline(def.coords, {
-          color: trackCol,
-          weight: 6,
-          opacity: trackOp,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        var hit = L.polyline(def.coords, {
-          color: '#000000',
-          weight: 20,
-          opacity: 0.007,
-          interactive: true
-        });
-        hit.on('click', function(e) {
-          L.DomEvent.stopPropagation(e);
-          toggleLineStationView(ctx, def.lineId);
-        });
-        hit.addTo(ctx.hitLayer);
-      });
-      fitMapToAllNetworkBounds(ctx);
+      installLineDefsOnMap(ctx, nycLineDefs);
     }
-
     function installTokyoLines(ctx) {
-      var grayMix = 0.52;
-      tokyoLineDefs.forEach(function(def) {
-        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
-        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
-        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
-        var trackOp = lineOn ? 1 : 0.78;
-        L.polyline(def.coords, {
-          color: outlineCol,
-          weight: 10,
-          opacity: lineOn ? 0.9 : 0.75,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        L.polyline(def.coords, {
-          color: trackCol,
-          weight: 6,
-          opacity: trackOp,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        var hit = L.polyline(def.coords, {
-          color: '#000000',
-          weight: 20,
-          opacity: 0.007,
-          interactive: true
-        });
-        hit.on('click', function(e) {
-          L.DomEvent.stopPropagation(e);
-          toggleLineStationView(ctx, def.lineId);
-        });
-        hit.addTo(ctx.hitLayer);
-      });
-      fitMapToAllNetworkBounds(ctx);
+      installLineDefsOnMap(ctx, tokyoLineDefs);
     }
-
     function installBangkokLines(ctx) {
-      var grayMix = 0.52;
-      bangkokLineDefs.forEach(function(def) {
-        var lineOn = lineHasWalkableRealTourism(ctx, def.lineId);
-        var outlineCol = lineOn ? def.outline : mixHexWithGray(def.outline, grayMix);
-        var trackCol = lineOn ? def.color : mixHexWithGray(def.color, grayMix);
-        var trackOp = lineOn ? 1 : 0.78;
-        L.polyline(def.coords, {
-          color: outlineCol,
-          weight: 10,
-          opacity: lineOn ? 0.9 : 0.75,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        L.polyline(def.coords, {
-          color: trackCol,
-          weight: 6,
-          opacity: trackOp,
-          interactive: false
-        }).addTo(ctx.lineTracksLayer);
-        var hit = L.polyline(def.coords, {
-          color: '#000000',
-          weight: 20,
-          opacity: 0.007,
-          interactive: true
-        });
-        hit.on('click', function(e) {
-          L.DomEvent.stopPropagation(e);
-          toggleLineStationView(ctx, def.lineId);
-        });
-        hit.addTo(ctx.hitLayer);
-      });
-      fitMapToAllNetworkBounds(ctx);
+      installLineDefsOnMap(ctx, bangkokLineDefs);
+    }
+    function installExtraMetroFactory(metroKey) {
+      return function(ctx) {
+        var defs = METRO_LINE_DEFS_BY_KEY[metroKey];
+        if (defs) installLineDefsOnMap(ctx, defs);
+      };
     }
 
     function createMetroContext(key, elId, stationsData, initialCenter, initialZoom, lineInstaller) {
@@ -3146,21 +3434,26 @@
     createMetroContext('tokyo', 'map-tokyo', stationsTokyo, [35.685, 139.75], 12, installTokyoLines);
     createMetroContext('bangkok', 'map-bangkok', stationsBangkok, [13.75, 100.55], 12, installBangkokLines);
 
+    (function initExtraMetros() {
+      var extra = [
+        'osaka', 'fukuoka', 'beijing', 'shanghai', 'taipei', 'singapore', 'paris', 'barcelona', 'rome', 'sydney'
+      ];
+      if (!window.METRO_EXTRA_LINE_DEFS || !window.buildMetroStationsFromLineDefs) return;
+      extra.forEach(function(mk) {
+        var defs = window.METRO_EXTRA_LINE_DEFS[mk];
+        if (!defs) return;
+        var st = window.buildMetroStationsFromLineDefs([], defs);
+        var ctr = METRO_TAB_CENTERS[mk];
+        if (!ctr) return;
+        createMetroContext(mk, 'map-' + mk, st, [ctr.lat, ctr.lng], ctr.z, installExtraMetroFactory(mk));
+      });
+    })();
+
     function refreshLineLegendTourismState() {
-      ['london', 'newyork', 'tokyo', 'bangkok'].forEach(function(mkey) {
+      Object.keys(metroByKey).forEach(function(mkey) {
         var ctx = metroByKey[mkey];
         if (!ctx) return;
-        var panelId =
-          mkey === 'london'
-            ? 'map-panel-london'
-            : mkey === 'newyork'
-              ? 'map-panel-newyork'
-              : mkey === 'tokyo'
-                ? 'map-panel-tokyo'
-                : mkey === 'bangkok'
-                  ? 'map-panel-bangkok'
-                  : 'map-panel-london';
-        var panel = document.getElementById(panelId);
+        var panel = document.getElementById('map-panel-' + mkey);
         if (!panel) return;
         panel.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
           var lid = row.getAttribute('data-tube-line');
@@ -3172,71 +3465,35 @@
     }
 
     function wireLineLegendClicks() {
-      var pLon = document.getElementById('map-panel-london');
-      if (pLon) {
-        pLon.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
-          row.addEventListener('click', function() {
-            var lid = row.getAttribute('data-tube-line');
-            toggleLineStationView(metroByKey.london, lid);
-          });
-          row.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              row.click();
-            }
-          });
-        });
+      var wrap = document.getElementById('map-wrap');
+      if (!wrap) return;
+      function onSelectRow(row) {
+        var panel = row.closest('.map-tab-panel');
+        if (!panel || !panel.id) return;
+        var mkey = panel.id.replace(/^map-panel-/, '');
+        var ctx = metroByKey[mkey];
+        if (!ctx) return;
+        var lid = row.getAttribute('data-tube-line');
+        if (!lid) return;
+        toggleLineStationView(ctx, lid);
       }
-      var pNyc = document.getElementById('map-panel-newyork');
-      if (pNyc) {
-        pNyc.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
-          row.addEventListener('click', function() {
-            var lid = row.getAttribute('data-tube-line');
-            toggleLineStationView(metroByKey.newyork, lid);
-          });
-          row.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              row.click();
-            }
-          });
-        });
-      }
-      var pTokyo = document.getElementById('map-panel-tokyo');
-      if (pTokyo) {
-        pTokyo.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
-          row.addEventListener('click', function() {
-            var lid = row.getAttribute('data-tube-line');
-            toggleLineStationView(metroByKey.tokyo, lid);
-          });
-          row.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              row.click();
-            }
-          });
-        });
-      }
-      var pBangkok = document.getElementById('map-panel-bangkok');
-      if (pBangkok) {
-        pBangkok.querySelectorAll('.line-legend__row[data-tube-line]').forEach(function(row) {
-          row.addEventListener('click', function() {
-            var lid = row.getAttribute('data-tube-line');
-            toggleLineStationView(metroByKey.bangkok, lid);
-          });
-          row.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              row.click();
-            }
-          });
-        });
-      }
+      wrap.addEventListener('click', function(e) {
+        var row = e.target.closest('.line-legend__row--selectable[data-tube-line]');
+        if (!row || !wrap.contains(row)) return;
+        onSelectRow(row);
+      });
+      wrap.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var row = e.target.closest('.line-legend__row--selectable[data-tube-line]');
+        if (!row || !wrap.contains(row)) return;
+        e.preventDefault();
+        onSelectRow(row);
+      });
     }
     wireLineLegendClicks();
 
     function switchMetroTab(key) {
-      if (!metroByKey[key] || key === activeMetroKey) return;
+      if (key === activeMetroKey) return;
       loadSubwayJsonForMetroKey(key);
       closeProductRecommendModal({ skipArmPicker: true });
       lastDestinationContext = null;
@@ -3244,14 +3501,19 @@
       activeMetroKey = key;
       currentCity = key;
       window.currentCity = key;
-      if (metroByKey.london) refreshLineStationMarkers(metroByKey.london, null);
-      if (metroByKey.newyork) refreshLineStationMarkers(metroByKey.newyork, null);
-      if (metroByKey.tokyo) refreshLineStationMarkers(metroByKey.tokyo, null);
-      if (metroByKey.bangkok) refreshLineStationMarkers(metroByKey.bangkok, null);
+      Object.keys(metroByKey).forEach(function(k) {
+        if (metroByKey[k]) {
+          if (typeof clearCsvPoiSelectionState === 'function') {
+            clearCsvPoiSelectionState(metroByKey[k]);
+          }
+          refreshLineStationMarkers(metroByKey[k], null);
+        }
+      });
+      var ctxTab = metroByKey[key];
       var ctr = METRO_TAB_CENTERS[key];
-      if (ctr && metroByKey[key] && metroByKey[key].map) {
+      if (ctr && ctxTab && ctxTab.map) {
         try {
-          metroByKey[key].map.setView([ctr.lat, ctr.lng], ctr.z);
+          ctxTab.map.setView([ctr.lat, ctr.lng], ctr.z);
         } catch (e) {}
       }
       document.querySelectorAll('.map-tab-panel').forEach(function(p) {
@@ -3264,11 +3526,11 @@
       });
       requestAnimationFrame(function() {
         Object.keys(metroByKey).forEach(function(k) {
-          metroByKey[k].map.invalidateSize();
+          if (metroByKey[k] && metroByKey[k].map) metroByKey[k].map.invalidateSize();
         });
         setTimeout(function() {
           Object.keys(metroByKey).forEach(function(k) {
-            metroByKey[k].map.invalidateSize();
+            if (metroByKey[k] && metroByKey[k].map) metroByKey[k].map.invalidateSize();
           });
         }, 200);
       });
@@ -3292,19 +3554,30 @@
 
     function stationLabelDivIcon(station, metroKey, displayLineNum, inactive) {
       metroKey = metroKey || 'london';
-      var lineClass;
-      var tk = station.tubeLineKey || 'central';
-      var cssKey = tk === 'metropolitan' ? 'metropolitan' : tk;
-      lineClass = 'tube-' + cssKey;
       var w = Math.min(180, Math.max(88, 22 + station.name.length * 14));
       var h = 32;
+      var lineClass;
+      var barOpen;
+      if (station.lineColor) {
+        lineClass = 'station-marker-label station-marker--dyn';
+        barOpen =
+          '<span class="station-marker-label__bar" style="background:' +
+          station.lineColor +
+          '" aria-hidden="true"></span>';
+      } else {
+        var tk = station.tubeLineKey || 'central';
+        var cssKey = tk === 'metropolitan' ? 'metropolitan' : tk;
+        lineClass = 'station-marker-label tube-' + cssKey;
+        barOpen = '<span class="station-marker-label__bar" aria-hidden="true"></span>';
+      }
       var html =
-        '<div class="station-marker-label ' +
+        '<div class="' +
         lineClass +
         (inactive ? ' station-marker-label--inactive' : '') +
         '" style="width:' +
         w +
-        'px"><span class="station-marker-label__bar" aria-hidden="true"></span>' +
+        'px">' +
+        barOpen +
         '<span class="station-marker-label__text">' +
         escapeHtml(station.name) +
         '</span></div>';
@@ -3425,6 +3698,7 @@
       var compact = placeName.replace(/\s/g, '');
       if (LANDMARK_EXACT[placeName]) return LANDMARK_EXACT[placeName];
       if (LANDMARK_EXACT[compact]) return LANDMARK_EXACT[compact];
+      if (/런던\s*아이|런던아이|London\s*Eye|LondonEye/i.test(placeName)) return LM.ride;
       if (/아쿠아리움|아쿠아/.test(placeName)) return LM.fish;
       if (/타워$/.test(placeName)) return LM.tower;
       if (/야구/.test(placeName)) return LM.ball;
@@ -3458,7 +3732,7 @@
       if (/논현동/.test(placeName)) return LM.food;
       if (/강남역 지하상가/.test(placeName)) return LM.shop;
       if (/Tower Bridge|Tower of London/.test(placeName)) return LM.gate;
-      if (/London Eye|Hyde Park|Regent Canal|St James/.test(placeName)) return LM.lake;
+      if (/Hyde Park|Regent Canal|St James/.test(placeName)) return LM.lake;
       if (/Big Ben|The Shard|Sky Garden/.test(placeName)) return LM.tower;
       if (/British Museum|British Library/.test(placeName)) return LM.coex;
       if (/Borough Market|Leadenhall|Soho/.test(placeName)) return LM.market;
@@ -3530,6 +3804,164 @@
         iconAnchor: [Math.round(w / 2), totalH]
       });
     }
+
+    /** 직선 distM( m ), bearing: 북 0° → 시계방향(Leaflet/지도와 유사) */
+    function offsetLatLngByMeters(lat, lng, distM, bearingFromNorthClockwiseDeg) {
+      var br = (bearingFromNorthClockwiseDeg * Math.PI) / 180;
+      var dLat = (distM * Math.cos(br)) / 111320;
+      var dLng = (distM * Math.sin(br)) / (111320 * Math.cos((lat * Math.PI) / 180));
+      return [lat + dLat, lng + dLng];
+    }
+
+    var CSV_SUBPICKER_SVG =
+      '<svg class="csv-subpicker-marker__svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+      '<path fill="currentColor" d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .9-3c1.6 1.1 3.2 2 5.3 2v-2c-1.7 0-3.1-1-4.3-2.1L10 5.5C9.4 4.9 8.5 4.7 7.7 5.2L4 7.5V11h2V8.4l1.7-.9"/>' +
+      '</svg>';
+
+    function csvSubProductPickerDivIcon() {
+      return L.divIcon({
+        className: '',
+        html: '<div class="csv-subpicker-marker">' + CSV_SUBPICKER_SVG + '</div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+    }
+
+    /**
+     * 관광지: 큰 destination 마커(이름) + 상품이 2개 이상이면 주변 작은 원형 피커(목업과 동일).
+     * 대마커 클릭: 전체 상품 팝업 · 작은 피커: 해당 상품만 팝업
+     * master showMasterMarkersForStation → 콜백
+     */
+    function showCsvAttractionPickers(ctx, station, groups) {
+      if (!ctx || !ctx.map || !ctx.stationPoiLayer) return;
+      clearCsvPoiSelectionState(ctx);
+      if (ctx.map.closePopup) ctx.map.closePopup();
+      groups = groups || [];
+      var ringM = 58;
+
+      groups.forEach(function(g) {
+        var place = { name: g.name, lat: g.lat, lng: g.lng };
+        var m = L.marker([g.lat, g.lng], {
+          icon: destinationMarkerDivIcon(place),
+          zIndexOffset: 450
+        });
+        m._poiKey = g.name + '|' + g.lat.toFixed(5) + ',' + g.lng.toFixed(5);
+        m._isAttractionHead = true;
+        m.bindPopup(buildCsvPoiProductPopupHtml(g, station), {
+          className: 'leaflet-csv-poi-popup',
+          maxWidth: 380,
+          autoClose: true,
+          autoPan: true,
+          closeOnClick: false
+        });
+        m.bindTooltip('관광지: ' + g.name + ' — 클릭: 전체 상품 (다시 클릭: 닫기)', {
+          direction: 'top',
+          className: 'attraction-picker-tooltip',
+          opacity: 0.95
+        });
+        m.on('click', function(ev) {
+          L.DomEvent.stopPropagation(ev);
+          if (ctx._csvPoiMarker === m) {
+            m.closePopup();
+            return;
+          }
+          if (ctx._csvPoiMarker && ctx._csvPoiMarker !== m) {
+            try {
+              ctx._csvPoiMarker.closePopup();
+            } catch (e0) {}
+          }
+          ctx._csvPoiKey = m._poiKey;
+          ctx._csvPoiMarker = m;
+          m.setZIndexOffset(700);
+          m.openPopup();
+        });
+        m.on('popupclose', function() {
+          if (ctx._csvPoiMarker === m) {
+            ctx._csvPoiKey = null;
+            ctx._csvPoiMarker = null;
+          }
+          m.setZIndexOffset(450);
+        });
+        m.addTo(ctx.stationPoiLayer);
+
+        var rows = g.productRows || [];
+        var n = rows.length;
+        if (n < 2) {
+          return;
+        }
+        var nShow = Math.min(n, 12);
+        for (var i = 0; i < nShow; i++) {
+          (function(row, idx) {
+            var bear = (360 * idx) / nShow;
+            var ll = offsetLatLngByMeters(g.lat, g.lng, ringM, bear);
+            var sm = L.marker(ll, { icon: csvSubProductPickerDivIcon(), zIndexOffset: 480 });
+            sm._isProductSubPicker = true;
+            sm._parentPoiKey = m._poiKey;
+            sm.bindPopup(buildCsvOneProductPopupHtml(row, g.name, station), {
+              className: 'leaflet-csv-poi-popup',
+              maxWidth: 320,
+              autoClose: true,
+              autoPan: true,
+              closeOnClick: false
+            });
+            var tip =
+              row.product && row.product.productName
+                ? String(row.product.productName).length > 28
+                  ? String(row.product.productName).slice(0, 26) + '…'
+                  : String(row.product.productName)
+                : '상품';
+            sm.bindTooltip('상품: ' + tip, { direction: 'right', className: 'attraction-picker-tooltip' });
+            sm.on('click', function(ev) {
+              L.DomEvent.stopPropagation(ev);
+              if (ctx._csvPoiMarker && ctx._csvPoiMarker._isAttractionHead) {
+                var headM = ctx._csvPoiMarker;
+                try {
+                  headM.closePopup();
+                } catch (e1) {}
+                try {
+                  headM.setZIndexOffset(450);
+                } catch (e2) {}
+                ctx._csvPoiKey = null;
+                ctx._csvPoiMarker = null;
+              }
+              sm.setZIndexOffset(600);
+              sm.openPopup();
+            });
+            sm.on('popupclose', function() {
+              sm.setZIndexOffset(480);
+            });
+            sm.addTo(ctx.stationPoiLayer);
+          })(rows[i], i);
+        }
+      });
+
+      if (groups.length) {
+        try {
+          var b = L.latLngBounds([station.lat, station.lng]);
+          groups.forEach(function(g) {
+            b.extend(L.latLng(g.lat, g.lng));
+            var rCount = (g.productRows && g.productRows.length) || 0;
+            if (rCount > 1) {
+              var nR = Math.min(rCount, 12);
+              for (var j = 0; j < nR; j++) {
+                var bear2 = (360 * j) / nR;
+                b.extend(L.latLng(offsetLatLngByMeters(g.lat, g.lng, ringM, bear2)));
+              }
+            }
+          });
+          ctx.map.fitBounds(b, { padding: [80, 80], maxZoom: 15, animate: true, duration: 0.4 });
+        } catch (e) {
+          try {
+            ctx.map.panTo([station.lat, station.lng], { animate: true, duration: 0.4 });
+          } catch (e2) {}
+        }
+      } else {
+        try {
+          ctx.map.panTo([station.lat, station.lng], { animate: true, duration: 0.4 });
+        } catch (e3) {}
+      }
+    }
+    window.showCsvAttractionPickers = showCsvAttractionPickers;
 
     function addWalkersAlongRoute(coords, featureGroup) {
       if (!coords || coords.length < 2) return;
@@ -3733,12 +4165,12 @@
     if (typeof applySubwayFilePresenceToTabs === 'function') {
       applySubwayFilePresenceToTabs();
     }
-    loadSubwayJsonForMetroKey('london');
+    loadSubwayJsonForMetroKey('newyork');
     if (typeof refreshLineLegendTourismState === 'function') {
       refreshLineLegendTourismState();
     }
     if (typeof fetchOpenWeatherForMetro === 'function') {
-      fetchOpenWeatherForMetro('london');
+      fetchOpenWeatherForMetro('newyork');
     }
   </script>
 </body>
